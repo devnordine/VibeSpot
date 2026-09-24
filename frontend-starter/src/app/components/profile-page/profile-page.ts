@@ -4,6 +4,7 @@ import { AuthService } from '../../shared/services/auth.service';
 
 @Component({
   imports: [ReactiveFormsModule],
+  standalone:true,
   templateUrl: './profile-page.html',
   styleUrl: './profile-page.css',
 })
