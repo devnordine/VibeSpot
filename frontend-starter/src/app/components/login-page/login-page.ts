@@ -14,26 +14,31 @@ export class LoginPageComponent {
 
   readonly error = signal('');
   readonly form = new FormGroup({
-    email: new FormControl('demo@example.com', {
+    email: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required, Validators.email],
     }),
-    password: new FormControl('Demo1234!', {
+    password: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required],
     }),
   });
 
   submit(): void {
+    this.form.markAllAsTouched();
+    this.error.set('');
+    if (this.form.invalid) {
+      return;
+    }
+
     const values = this.form.getRawValue();
     this.auth.login(values.email, values.password).subscribe({
       next: () => {
-        console.debug('[LoginPage] Connexion réussie');
         void this.router.navigateByUrl('/tracks');
       },
       error: (error: { error?: { message?: string } }) => {
-        console.error('[LoginPage] Échec de connexion', error);
-        this.error.set(error.error?.message ?? 'Erreur de connexion');
+        console.error('[LoginPage] Échec de connexion', error.error?.message);
+        this.error.set(error.error?.message ?? 'Impossible de se connecter.');
       },
     });
   }
