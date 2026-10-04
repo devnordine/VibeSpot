@@ -1,28 +1,16 @@
 import { inject } from '@angular/core';
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
-import { Router } from '@angular/router';
-import { catchError, throwError } from 'rxjs';
+import { HttpInterceptorFn } from '@angular/common/http';
 import { AuthService } from '../services/auth.service';
 
 /** Adds the bearer token to protected API requests. */
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
-  const token = auth.token();
+  const token = inject(AuthService).token();
 
-  const requestWithToken = token
-    ? request.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
-    : request;
-
-  return next(requestWithToken).pipe(
-    catchError((error: unknown) => {
-      if (error instanceof HttpErrorResponse && error.status === 401) {
-        auth.logout();
-        if (router.url !== '/login') {
-          void router.navigateByUrl('/login');
-        }
-      }
-      return throwError(() => error);
-    }),
+  return next(
+    token
+      ? request.clone({
+          setHeaders: { Authorization: `Bearer ${token}` },
+        })
+      : request,
   );
 };
