@@ -4,6 +4,8 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../shared/services/auth.service';
 
 @Component({
+  selector: 'app-login-page',
+  standalone: true,
   imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './login-page.html',
   styleUrl: './login-page.css',
@@ -25,15 +27,22 @@ export class LoginPageComponent {
   });
 
   submit(): void {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      this.error.set('Veuillez remplir correctement tous les champs.');
+      return;
+    }
+
+    this.error.set('');
     const values = this.form.getRawValue();
+
     this.auth.login(values.email, values.password).subscribe({
       next: () => {
-        console.debug('[LoginPage] Connexion réussie');
         void this.router.navigateByUrl('/tracks');
       },
       error: (error: { error?: { message?: string } }) => {
         console.error('[LoginPage] Échec de connexion', error);
-        this.error.set(error.error?.message ?? 'Erreur de connexion');
+        this.error.set(error.error?.message ?? 'Identifiants incorrects');
       },
     });
   }

@@ -4,13 +4,17 @@ import { tap } from 'rxjs';
 import { AuthResponse } from '../models/auth-response.model';
 import { User } from '../models/user.model';
 
-/** Handles authentication and the current user's profile. */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
 
   readonly currentUser = signal<User | null>(null);
   readonly token = signal<string | null>(localStorage.getItem('gpc_token'));
+
+  // Initialisation moderne déclenchée à l'instanciation
+  private readonly _initSession = this.token()
+    ? this.profile().subscribe({ error: () => this.logout() })
+    : null;
 
   login(email: string, password: string) {
     return this.http
