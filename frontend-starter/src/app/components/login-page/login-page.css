@@ -1,1 +1,68 @@
-:host { display: block; max-width: 520px; margin: 0 auto; }
+:host {
+  display: block;
+  max-width: 460px;
+  margin: 3.5rem auto;
+}
+
+section.card {
+  padding: 2.5rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  background: var(--bg-card);
+  border: 1px solid rgba(18, 61, 50, 0.06);
+}
+
+h1 {
+  margin: 0 0 1.75rem 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -0.02em;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+input {
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+}
+
+button[type='submit'] {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.9rem;
+  font-size: 1rem;
+  border-radius: var(--radius-sm);
+}
+
+a {
+  display: inline-block;
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+@media (max-width: 540px) {
+  :host {
+    margin: 1.5rem 1rem;
+    max-width: 100%;
+  }
+
+  section.card {
+    padding: 1.75rem 1.25rem;
+  }
+}
