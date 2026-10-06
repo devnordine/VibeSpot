@@ -36,8 +36,8 @@ body {
 
 main {
   max-width: 1080px;
-  margin: 2.5rem auto;
-  padding: 0 1.5rem;
+  margin: 1rem auto; 
+  padding: 0 1rem;
 }
 
 a {

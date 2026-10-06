@@ -1,44 +1,153 @@
 <section>
   <div class="hero">
-    <p class="eyebrow">MA BIBLIOTHÈQUE</p>
+    <span class="eyebrow">Ma bibliothèque</span>
     <h1>Backing tracks</h1>
     <p>Importez, retrouvez et écoutez vos morceaux de travail.</p>
   </div>
 
   <div class="grid">
+    <!-- Colonne Importation -->
     <article class="card">
       <h2>Importer</h2>
-      <label>Titre<input [formControl]="title" /></label>
-      <label>Fichier audio<input type="file" accept="audio/*" (change)="choose($event)" /></label>
-      <button type="button" (click)="upload()" [disabled]="!file">Envoyer</button>
+
+      @if (uploadSuccess()) {
+        <div style="color: #1d755e; background: #eaf1ee; padding: 0.75rem 1rem; border-radius: 8px; margin: 1rem 0; font-weight: 500;">
+          {{ uploadSuccess() }}
+        </div>
+      }
+
+      @if (uploadError()) {
+        <div class="error" role="alert" style="margin: 1rem 0;">
+          {{ uploadError() }}
+        </div>
+      }
+
+      <form (ngSubmit)="upload()">
+        <label>
+          Titre
+          <input [formControl]="title" placeholder="Titre du morceau" [disabled]="uploading()" />
+        </label>
+
+        <label>
+          Fichier audio (max 25 Mo)
+          <input
+            #fileInput
+            type="file"
+            accept="audio/*"
+            (change)="choose($event)"
+            [disabled]="uploading()"
+          />
+        </label>
+
+        @if (uploading()) {
+          <div style="margin: 0.5rem 0;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem;">
+              <span>Envoi en cours...</span>
+              <span>{{ uploadProgress() }}%</span>
+            </div>
+            <progress [value]="uploadProgress()" max="100" style="width: 100%; height: 8px;"></progress>
+          </div>
+        }
+
+        <button
+          type="button"
+          (click)="upload()"
+          [disabled]="!file || uploading()"
+        >
+          @if (uploading()) {
+            Téléversement...
+          } @else {
+            Envoyer
+          }
+        </button>
+      </form>
     </article>
 
+    <!-- Colonne Liste & Lecteur -->
     <article class="card">
       <div class="row">
         <h2>Mes pistes</h2>
-        <button type="button" (click)="load()">Actualiser</button>
+        <button type="button" (click)="load()" [disabled]="loading()">
+          Actualiser
+        </button>
       </div>
+
+      <div class="search-container">
+        <input
+          type="search"
+          [value]="searchTerm()"
+          (input)="searchTerm.set($any($event.target).value)"
+          placeholder="Filtrer par titre..."
+        />
+      </div>
+
+      @if (listError()) {
+        <div class="error" role="alert">{{ listError() }}</div>
+      }
+
       @if (loading()) {
-        <p>Chargement…</p>
-      }
-      @for (track of tracks(); track track.id) {
-        <div class="track">
-          <div>
-            <b>{{ track.title }}</b>
-            <small>{{ track.originalName }} · {{ track.size }} Ko</small>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Chargement des pistes...</p>
+      } @else {
+        @for (track of filteredTracks(); track track.id) {
+          <div class="track">
+            <div class="track-info">
+              <b>{{ track.title }}</b>
+              <small>
+                {{ track.originalName }} · {{ (track.size / 1024 / 1024).toFixed(2) }} Mo
+                @if (track.createdAt) {
+                  · Ajouté le {{ formatDate(track.createdAt) }}
+                }
+              </small>
+            </div>
+            <div class="track-actions">
+              <button
+                type="button"
+                class="btn-play"
+                (click)="play(track)"
+                [attr.aria-label]="'Lire ' + track.title"
+              >
+                ▶
+              </button>
+              <button
+                type="button"
+                class="btn-delete"
+                (click)="deleteTrack(track)"
+                [attr.aria-label]="'Supprimer ' + track.title"
+              >
+                🗑
+              </button>
+            </div>
           </div>
-          <button type="button" (click)="play(track)" [attr.aria-label]="'Lire ' + track.title">▶</button>
-        </div>
-      } @empty {
-        <p>Aucune piste.</p>
+        } @empty {
+          <p style="color: var(--text-muted); padding: 1rem 0;">Aucune piste trouvée.</p>
+        }
+
+        @if (pages() > 1 && !searchTerm()) {
+          <nav class="pager" aria-label="Pagination">
+            <button
+              type="button"
+              (click)="go(page() - 1)"
+              [disabled]="page() <= 1 || loading()"
+            >
+              Préc.
+            </button>
+            <span>Page {{ page() }} / {{ pages() }}</span>
+            <button
+              type="button"
+              (click)="go(page() + 1)"
+              [disabled]="page() >= pages() || loading()"
+            >
+              Suiv.
+            </button>
+          </nav>
+        }
       }
-      <div class="pager">
-        <button type="button" (click)="go(page() - 1)" [disabled]="page() === 1">Préc.</button>
-        <span>Page {{ page() }} / {{ pages() }}</span>
-        <button type="button" (click)="go(page() + 1)" [disabled]="page() === pages()">Suiv.</button>
-      </div>
+
       @if (audioUrl()) {
-        <audio [src]="audioUrl()" controls autoplay></audio>
+        <div class="player-box">
+          <p><b>Morceau en cours :</b> {{ currentTrack()?.title }}</p>
+          <audio [src]="audioUrl()" controls autoplay></audio>
+        </div>
       }
     </article>
   </div>
