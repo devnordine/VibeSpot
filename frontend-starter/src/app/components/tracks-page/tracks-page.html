@@ -1,4 +1,15 @@
 <section>
+  @if (snackbarMessage(); as snack) {
+    <aside
+      class="snackbar"
+      [class.snackbar-success]="snack.type === 'success'"
+      [class.snackbar-error]="snack.type === 'error'"
+      role="status"
+    >
+      {{ snack.text }}
+    </aside>
+  }
+
   <div class="hero">
     <span class="eyebrow">Ma bibliothèque</span>
     <h1>Backing tracks</h1>
@@ -6,64 +17,74 @@
   </div>
 
   <div class="grid">
-    <!-- Colonne Importation -->
-    <article class="card">
-      <h2>Importer</h2>
+    <div class="left-column">
+      <article class="card">
+        <h2>Importer</h2>
 
-      @if (uploadSuccess()) {
-        <div style="color: #1d755e; background: #eaf1ee; padding: 0.75rem 1rem; border-radius: 8px; margin: 1rem 0; font-weight: 500;">
-          {{ uploadSuccess() }}
-        </div>
-      }
-
-      @if (uploadError()) {
-        <div class="error" role="alert" style="margin: 1rem 0;">
-          {{ uploadError() }}
-        </div>
-      }
-
-      <form (ngSubmit)="upload()">
-        <label>
-          Titre
-          <input [formControl]="title" placeholder="Titre du morceau" [disabled]="uploading()" />
-        </label>
-
-        <label>
-          Fichier audio (max 25 Mo)
-          <input
-            #fileInput
-            type="file"
-            accept="audio/*"
-            (change)="choose($event)"
-            [disabled]="uploading()"
-          />
-        </label>
-
-        @if (uploading()) {
-          <div style="margin: 0.5rem 0;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem;">
-              <span>Envoi en cours...</span>
-              <span>{{ uploadProgress() }}%</span>
-            </div>
-            <progress [value]="uploadProgress()" max="100" style="width: 100%; height: 8px;"></progress>
+        @if (uploadSuccess()) {
+          <div class="feedback-success">
+            {{ uploadSuccess() }}
           </div>
         }
 
-        <button
-          type="button"
-          (click)="upload()"
-          [disabled]="!file || uploading()"
-        >
-          @if (uploading()) {
-            Téléversement...
-          } @else {
-            Envoyer
-          }
-        </button>
-      </form>
-    </article>
+        @if (uploadError()) {
+          <div class="error feedback-error" role="alert">
+            {{ uploadError() }}
+          </div>
+        }
 
-    <!-- Colonne Liste & Lecteur -->
+        <form (ngSubmit)="upload()">
+          <label>
+            Titre
+            <input [formControl]="title" placeholder="Titre du morceau" [disabled]="uploading()" />
+          </label>
+
+          <label>
+            Fichier audio (max 25 Mo)
+            <input
+              #fileInput
+              type="file"
+              accept="audio/*"
+              (change)="choose($event)"
+              [disabled]="uploading()"
+            />
+          </label>
+
+          @if (uploading()) {
+            <div class="upload-progress-box">
+              <div class="upload-progress-labels">
+                <span>Envoi en cours...</span>
+                <span>{{ uploadProgress() }}%</span>
+              </div>
+              <progress [value]="uploadProgress()" max="100" class="upload-progress-bar"></progress>
+            </div>
+          }
+
+          <button
+            type="button"
+            (click)="upload()"
+            [disabled]="!file || uploading()"
+          >
+            @if (uploading()) {
+              Téléversement...
+            } @else {
+              Envoyer
+            }
+          </button>
+        </form>
+      </article>
+
+      @if (audioUrl()) {
+        <article class="card player-card">
+          <h2>Lecture en cours</h2>
+          <p class="now-playing">
+            <b>Morceau :</b> {{ currentTrack()?.title }}
+          </p>
+          <audio [src]="audioUrl()" controls autoplay></audio>
+        </article>
+      }
+    </div>
+
     <article class="card">
       <div class="row">
         <h2>Mes pistes</h2>
@@ -86,7 +107,7 @@
       }
 
       @if (loading()) {
-        <p style="color: var(--text-muted); font-size: 0.95rem;">Chargement des pistes...</p>
+        <p class="loading-text">Chargement des pistes...</p>
       } @else {
         @for (track of filteredTracks(); track track.id) {
           <div class="track">
@@ -112,14 +133,19 @@
                 type="button"
                 class="btn-delete"
                 (click)="deleteTrack(track)"
+                [disabled]="deletingId() === track.id"
                 [attr.aria-label]="'Supprimer ' + track.title"
               >
-                🗑
+                @if (deletingId() === track.id) {
+                  …
+                } @else {
+                  🗑
+                }
               </button>
             </div>
           </div>
         } @empty {
-          <p style="color: var(--text-muted); padding: 1rem 0;">Aucune piste trouvée.</p>
+          <p class="empty-list">Aucune piste trouvée.</p>
         }
 
         @if (pages() > 1 && !searchTerm()) {
@@ -141,13 +167,6 @@
             </button>
           </nav>
         }
-      }
-
-      @if (audioUrl()) {
-        <div class="player-box">
-          <p><b>Morceau en cours :</b> {{ currentTrack()?.title }}</p>
-          <audio [src]="audioUrl()" controls autoplay></audio>
-        </div>
       }
     </article>
   </div>

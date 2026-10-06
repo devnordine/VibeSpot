@@ -1,6 +1,6 @@
 import { Component, computed, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { HttpEventType } from '@angular/common/http';
+import { HttpErrorResponse, HttpEvent, HttpEventType } from '@angular/common/http';
 import { Track } from '../../shared/models/track.model';
 import { TrackService } from '../../shared/services/track.service';
 
@@ -23,6 +23,10 @@ export class TracksPageComponent implements OnInit, OnDestroy {
   readonly pages = signal(1);
   readonly loading = signal(false);
   readonly listError = signal('');
+
+  // Mission 5 : Anti-double clic & Feedback SnackBar
+  readonly deletingId = signal<string | null>(null);
+  readonly snackbarMessage = signal<{ text: string; type: 'success' | 'error' } | null>(null);
 
   readonly searchTerm = signal('');
   readonly filteredTracks = computed(() => {
@@ -51,7 +55,8 @@ export class TracksPageComponent implements OnInit, OnDestroy {
   choose(event: Event): void {
     this.uploadError.set('');
     this.uploadSuccess.set('');
-    this.uploadProgress.set(0);
+    
+    this.uploadProgress.set(45);
     const input = event.target as HTMLInputElement;
     const selectedFile = input.files?.[0];
 
@@ -97,44 +102,60 @@ export class TracksPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  upload(): void {
-    if (this.uploading() || !this.file) return;
-    if (!this.isValidAudioFile(this.file)) return;
+  
+upload(): void {
+  
+  if (this.uploading() || !this.file) return;
+  if (!this.isValidAudioFile(this.file)) return;
 
-    const trackTitle = this.title.value.trim() || this.file.name;
+  const trackTitle = this.title.value.trim() || this.file.name;
 
-    this.uploading.set(true);
-    this.uploadProgress.set(0);
-    this.uploadError.set('');
-    this.uploadSuccess.set('');
+  
+  this.uploading.set(true);
+  this.uploadProgress.set(0);
+  this.uploadError.set('');
+  this.uploadSuccess.set('');
 
-    this.service.uploadWithProgress(this.file, trackTitle).subscribe({
-      next: (event) => {
-        if (event.type === HttpEventType.UploadProgress && event.total) {
-          this.uploadProgress.set(Math.round((100 * event.loaded) / event.total));
-        } else if (event.type === HttpEventType.Response) {
-          const track = event.body;
-          this.uploading.set(false);
-          this.uploadSuccess.set(`« ${track?.title ?? trackTitle} » ajouté avec succès.`);
-          this.resetUploadForm();
-          this.page.set(1);
-          this.load();
-        }
-      },
-      error: (err: { error?: { message?: string } }) => {
+  this.service.uploadWithProgress(this.file, trackTitle).subscribe({
+    next: (event: HttpEvent<Track>) => {
+      
+      if (event.type === HttpEventType.UploadProgress && event.total) {
+        const percent = Math.round((100 * event.loaded) / event.total);
+        this.uploadProgress.set(percent);
+      } 
+     
+      else if (event.type === HttpEventType.Response) {
+        const createdTrack = event.body;
         this.uploading.set(false);
-        this.uploadProgress.set(0);
-        this.uploadError.set(err.error?.message ?? 'Échec du téléversement sur le serveur.');
-      },
-    });
-  }
+        this.uploadProgress.set(100);
+        this.uploadSuccess.set(`« ${createdTrack?.title ?? trackTitle} » ajouté avec succès.`);
+        this.resetUploadForm();
+        this.page.set(1);
+        this.load();
+      }
+    },
+    
+    error: (err: HttpErrorResponse) => {
+      this.uploading.set(false);
+      this.uploadProgress.set(0);
+      this.uploadError.set(err.error?.message ?? 'Échec du téléversement sur le serveur.');
+    },
+  });
+}
 
   deleteTrack(track: Track): void {
+    if (this.deletingId()) return;
+
     const confirmed = window.confirm(`Voulez-vous vraiment supprimer « ${track.title} » ?`);
     if (!confirmed) return;
 
+    this.deletingId.set(track.id);
+
     this.service.delete(track.id).subscribe({
       next: () => {
+        this.deletingId.set(null);
+        this.showSnackbar(`« ${track.title} » a été supprimé avec succès.`, 'success');
+
         if (this.currentTrack()?.id === track.id) {
           this.clearAudio();
         }
@@ -143,7 +164,18 @@ export class TracksPageComponent implements OnInit, OnDestroy {
         }
         this.load();
       },
-      error: () => this.listError.set(`Impossible de supprimer « ${track.title} ».`),
+      error: (err: HttpErrorResponse) => {
+        this.deletingId.set(null);
+
+        if (err.status === 404) {
+          this.showSnackbar(`La piste « ${track.title} » a déjà été supprimée ailleurs.`, 'error');
+          this.load();
+        } else if (err.status === 403) {
+          this.showSnackbar(`Suppression refusée : vous n'êtes pas propriétaire de « ${track.title} ».`, 'error');
+        } else {
+          this.showSnackbar(`Impossible de supprimer « ${track.title} ».`, 'error');
+        }
+      },
     });
   }
 
@@ -170,6 +202,15 @@ export class TracksPageComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.clearAudio();
+  }
+
+  private showSnackbar(text: string, type: 'success' | 'error'): void {
+    this.snackbarMessage.set({ text, type });
+    setTimeout(() => {
+      if (this.snackbarMessage()?.text === text) {
+        this.snackbarMessage.set(null);
+      }
+    }, 4000);
   }
 
   private clearAudio(): void {

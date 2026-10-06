@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Rapport de tests automatisés — TP3</title>
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        line-height: 1.6;
+        color: #222;
+        max-width: 850px;
+        margin: 40px auto;
+        padding: 0 20px;
+      }
+      h1 {
+        color: #123d32;
+        border-bottom: 2px solid #1d755e;
+        padding-bottom: 8px;
+        margin-bottom: 20px;
+      }
+      h2 {
+        color: #1d755e;
+        margin-top: 30px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 4px;
+      }
+      .info-box {
+        background: #f0f7f4;
+        border-left: 4px solid #1d755e;
+        padding: 12px 16px;
+        margin-bottom: 25px;
+        border-radius: 0 4px 4px 0;
+      }
+      .info-box p {
+        margin: 4px 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 0.9em;
+      }
+      th,
+      td {
+        border: 1px solid #dce8e3;
+        padding: 10px 12px;
+        text-align: left;
+      }
+      th {
+        background-color: #eaf1ee;
+        color: #123d32;
+        font-weight: 600;
+      }
+      tr:nth-child(even) {
+        background-color: #fbfdfc;
+      }
+      .status-ok {
+        color: #1d755e;
+        font-weight: bold;
+        text-align: center;
+      }
+      pre {
+        background: #f7f9f8;
+        border: 1px solid #dce8e3;
+        padding: 12px;
+        border-radius: 6px;
+        font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.85em;
+        overflow-x: auto;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      li {
+        margin-bottom: 6px;
+      }
+
+      .screenshot {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        margin: 12px 0 24px 0;
+        border: 1px solid #dce8e3;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      @media print {
+        body {
+          margin: 20px;
+          max-width: 100%;
+        }
+        pre,
+        table {
+          page-break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Rapport de tests automatisés — TP3</h1>
+
+    <div class="info-box">
+      <p><strong>Étudiant :</strong> BRAHMIA Noureddine</p>
+      <p><strong>Projet :</strong> Guitar Practice Cloud</p>
+      <p><strong>Module :</strong> Programmation Web — Angular M1 MIAGE</p>
+      <p>
+        <strong>Environnement de test :</strong> Vitest / Angular Unit Test
+        Runner (jsdom)
+      </p>
+    </div>
+
+    <h2>1. Synthèse d'exécution de la suite de tests</h2>
+    <pre>
+RUN v4.1.11 frontend-starter
+✓ gpc src/app/shared/services/track.service.spec.ts (2 tests) 20ms
+✓ gpc src/app/shared/interceptors/auth.interceptor.spec.ts (2 tests) 15ms
+
+Test Files  2 passed (2)
+     Tests  4 passed (4)
+  Duration  999ms
+  </pre
+    >
+
+    <h2>2. Tableau des résultats attendus et observés</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Composant / Service</th>
+          <th>Cas de test vérifié</th>
+          <th>Résultat attendu</th>
+          <th>Résultat observé</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>TrackService</code></td>
+          <td>
+            Transmission des paramètres de pagination (<code>page</code> &
+            <code>limit</code>)
+          </td>
+          <td>
+            Émission d'une requête
+            <code>GET /api/tracks?page=2&limit=5</code> avec les bons query
+            params et désérialisation de l'objet paginé
+            <code>Page&lt;Track&gt;</code>.
+          </td>
+          <td>
+            Requête interceptée avec l'URL et les paramètres exacts via
+            <code>HttpTestingController</code>. Réponse simulée injectée avec
+            succès.
+          </td>
+          <td class="status-ok">Succès</td>
+        </tr>
+        <tr>
+          <td><code>TrackService</code></td>
+          <td>Suppression ciblée d'une piste (<code>delete()</code>)</td>
+          <td>
+            Appel de la méthode HTTP <code>DELETE /api/tracks/:id</code> sans
+            corps de requête et complétion sur statut
+            <code>204 No Content</code>.
+          </td>
+          <td>
+            Requête interceptée avec le verbe <code>DELETE</code> et
+            l'identifiant ciblé. Aucun corps transmis, flux complété sans
+            erreur.
+          </td>
+          <td class="status-ok">Succès</td>
+        </tr>
+        <tr>
+          <td><code>authInterceptor</code></td>
+          <td>Injection du token JWT lors d'une session active</td>
+          <td>
+            Clonage de la requête sortante et injection de l'en-tête HTTP
+            <code>Authorization: Bearer &lt;token&gt;</code> quand le signal
+            contient une clé.
+          </td>
+          <td>
+            En-tête <code>Authorization</code> présent et correctement valorisé
+            avec le préfixe <code>Bearer</code>.
+          </td>
+          <td class="status-ok">Succès</td>
+        </tr>
+        <tr>
+          <td><code>authInterceptor</code></td>
+          <td>Omission de l'en-tête d'authentification hors session</td>
+          <td>
+            Transmission de la requête sans modification du header
+            d'autorisation lorsque le signal <code>token()</code> vaut
+            <code>null</code>.
+          </td>
+          <td>
+            En-tête <code>Authorization</code> absent de la requête interceptée.
+          </td>
+          <td class="status-ok">Succès</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Preuves associées au livrable</h2>
+
+    <h3>Tests unitaires réussis</h3>
+    <img
+      src="capture_ecran_TP3/capture_tests_reussis.png"
+      alt="Tests unitaires"
+      class="screenshot"
+    />
+
+    <h3>Compilation de production (Build)</h3>
+    <img
+      src="capture_ecran_TP3/capture_build_succes.png"
+      alt="Build de production"
+      class="screenshot"
+    />
+
+    <h3>Suppression d'une piste (DELETE)</h3>
+    <img
+      src="capture_ecran_TP3/capture_delete_network.png"
+      alt="Network DELETE"
+      class="screenshot"
+    />
+
+    <h3>Trace réseau et progression du téléversement (POST)</h3>
+    <img
+      src="capture_ecran_TP3/capture_upload_progress.png"
+      alt="Progression upload"
+      class="screenshot"
+    />
+  </body>
+</html>

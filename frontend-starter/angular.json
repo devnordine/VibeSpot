@@ -1,43 +1,61 @@
 {
-    "version": 1,
-    "projects": {
-        "gpc": {
-            "projectType": "application",
-            "root": "",
-            "sourceRoot": "src",
-            "architect": {
-                "build": {
-                    "builder": "@angular/build:application",
-                    "options": {
-                        "browser": "src/main.ts",
-                        "tsConfig": "tsconfig.app.json",
-                        "assets": [
-                            {
-                                "glob": "**/*",
-                                "input": "public"
-                            }
-                        ],
-                        "styles": [
-                            "src/styles.css"
-                        ]
-                    }
-                },
-                "serve": {
-                    "builder": "@angular/build:dev-server",
-                    "options": {
-                        "proxyConfig": "proxy.conf.json"
-                    },
-                    "configurations": {
-                        "development": {
-                            "buildTarget": "gpc:build"
-                        }
-                    },
-                    "defaultConfiguration": "development"
-                },
-                "test": {
-                    "builder": "@angular/build:unit-test"
-                }
+  "version": 1,
+  "projects": {
+    "gpc": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "src",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "src/main.ts",
+            "tsConfig": "tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "public"
+              }
+            ],
+            "styles": [
+              "src/styles.css"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "optimization": true,
+              "outputHashing": "all",
+              "sourceMap": false
+            },
+            "development": {
+              "optimization": false,
+              "sourceMap": true
             }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          },
+          "configurations": {
+            "development": {
+              "buildTarget": "gpc:build:development"
+            },
+            "production": {
+              "buildTarget": "gpc:build:production"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "buildTarget": "gpc:build:development"
+          }
         }
+      }
     }
+  }
 }

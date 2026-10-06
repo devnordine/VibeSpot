@@ -191,3 +191,137 @@ Valider les fichiers en amont côté client (< 25 Mo et format audio), gérer le
 - **Pourquoi `<audio src="...">` échoue sans Blob :** Les balises multimédias natives exécutent des requêtes hors du contexte de l'application et n'ont pas accès au token JWT présent dans le `localStorage`. Elles ne transitent pas par l'intercepteur Angular et reçoivent un statut 401.
 - **Rôle du Garbage Collector et révocation :** `URL.createObjectURL()` crée une référence mémoire forte vers le flux binaire. Le Garbage Collector ne peut pas détruire le `Blob` tant que cette URL existe. `URL.revokeObjectURL()` libère immédiatement l'espace RAM alloué.
 - **Validation client vs serveur :** La validation frontend offre un retour d'expérience immédiat à l'utilisateur, mais elle est contournable (via cURL, Postman ou la console) : la validation backend reste l'unique garant de l'intégrité et de la sécurité du système.
+
+---
+
+## TP3 — Fiabilisation et enrichissement du frontend
+
+### Mission 5 — Suppression d’une piste et gestion des conflits
+
+#### 1. Objectif
+Ajouter une action de suppression sécurisée sur chaque card de piste via `DELETE /api/tracks/:id`, sécuriser l'opération avec une boîte de confirmation utilisateur, mettre en place un état de suppression pour verrouiller l'interface contre les doubles clics, notifier l'utilisateur par un composant SnackBar éphémère, réajuster dynamiquement la pagination en cas de suppression du dernier élément d'une page, et traiter spécifiquement les cas d'erreur de concurrence `404` (ressource déjà supprimée dans un autre onglet) et `403` (ressource n'appartenant pas à l'utilisateur connecté).
+
+#### 2. Prompt principal
+> « Dans track.service.ts et tracks-page, implémente la suppression d'une piste via DELETE /api/tracks/:id. Ajoute une confirmation avant suppression, un état de suppression pour bloquer les doubles clics, un message de retour (succès ou erreur), le rafraîchissement automatique de la liste (en gérant le cas de la dernière piste d'une page), et le traitement des erreurs si la piste a déjà été supprimée (404) ou n'appartient pas à l'utilisateur (403). Explique pourquoi le guard et l'interface ne suffisent pas à sécuriser cette action. »
+
+#### 3. Plan proposé par l'agent
+1. **`track.service.ts` :** Créer la méthode `delete(id: string): Observable<void>` utilisant `HttpClient.delete`.
+2. **`tracks-page.ts` :**
+   - Introduire le signal `deletingId = signal<string | null>(null)` pour verrouiller spécifiquement le bouton de la piste en cours de suppression.
+   - Ajouter le signal `snackbarMessage` pour afficher un bandeau éphémère (durée 4 secondes).
+   - Arrêter la lecture audio et révoquer l'URL locale si la piste supprimée correspondait à la piste en cours d'écoute.
+   - Gérer le recul de page automatique (`this.tracks().length === 1 && this.page() > 1`) avant de recharger la liste.
+   - Traiter les statuts `HttpErrorResponse` : réactualiser l'affichage sur statut `404` et alerter sur statut `403`.
+3. **`tracks-page.html` & `tracks-page.css` :** Ajouter l'élément `<aside class="snackbar">` et relier le bouton corbeille avec `[disabled]="deletingId() === track.id"` sans injecter de styles en ligne.
+
+#### 4. Vérifications réalisées
+- Déclenchement de la suppression avec confirmation native : vérification de la désactivation du bouton (affichage de `…` à la place de l'icône de corbeille).
+- Observation de l'onglet Network : requête `DELETE /api/tracks/:id` émise avec statut 204 No Content, disparition immédiate de la carte et affichage de la SnackBar de succès.
+- Test de suppression de l'unique élément de la page 2 : l'application décrémente automatiquement le signal `page` à 1 et recharge les éléments correspondants.
+
+#### 5. Erreurs ou propositions rejetées
+- Proposition de l'agent d'ajouter un composant de dialogue lourd issu d'une bibliothèque externe : rejetée pour conserver la boîte modale native du navigateur (`window.confirm`) et un composant SnackBar léger piloté par Signals.
+- Utilisation initiale de styles en ligne (`style="..."`) dans le template : rejetée et intégralement déportée dans des classes CSS (`.snackbar`, `.snackbar-success`, `.snackbar-error`).
+
+#### 6. Fichiers effectivement modifiés
+- `frontend-starter/src/app/shared/services/track.service.ts`
+- `frontend-starter/src/app/components/tracks-page/tracks-page.ts`
+- `frontend-starter/src/app/components/tracks-page/tracks-page.html`
+- `frontend-starter/src/app/components/tracks-page/tracks-page.css`
+
+#### 7. Preuves de fonctionnement
+- Échange avec l'IA sur la suppression et la concurrence :  
+  ![Prompt suppression piste](livrables/TP3/capture_ecran_TP3/capture_suppression_piste_gestion_concurrentielle.png)
+- Trace réseau de la suppression confirmée (`DELETE /api/tracks/:id`) :  
+  ![Trace réseau DELETE](livrables/TP3/capture_ecran_TP3/capture_delete_network.png)
+
+#### 8. Ce que je sais expliquer sans l'agent
+- **Pourquoi la suppression passe par un service (SOC) :** Le composant ne doit pas connaître les détails d'implémentation HTTP (URL, headers, verbes). Il délègue l'opération à `TrackService.delete()`, ce qui évite la duplication de code et permet de tester le composant isolément en bouchonnant le service.
+- **Pourquoi le guard et l'interface ne protègent pas la suppression :** Le code client et le DOM sont entièrement modifiables depuis la console du navigateur ou via des requêtes directes (cURL / Postman). Seul le backend Express sécurise la suppression en vérifiant la signature du JWT via `authMiddleware` et en validant dans MongoDB que `track.userId.toString() === req.user.id.toString()`. En cas de violation, le backend répond avec un statut `403 Forbidden`.
+
+---
+
+### Mission 6 — Événements HTTP et Progression de l’upload
+
+#### 1. Objectif
+Faire évoluer le mécanisme de téléversement pour écouter les événements réseau en temps réel via l'API d'Angular (`reportProgress: true` et `observe: 'events'`), calculer dynamiquement le pourcentage d'avancement, piloter les états réactifs (inactif, en cours, succès, échec), et verrouiller les formulaires pendant le transfert pour prévenir toute double soumission.
+
+#### 2. Prompt principal
+> « Fais évoluer la méthode d'upload dans track.service.ts et tracks-page pour gérer la progression via les événements HTTP Angular (reportProgress: true, observe: 'events'). Gère les états réactifs : inactif, en cours avec pourcentage calculé dynamiquement, succès et échec. Désactive les contrôles pendant l'envoi pour éviter toute double soumission. Explique pourquoi cette approche diffère d'une requête HTTP standard à réponse unique. »
+
+#### 3. Plan proposé par l'agent
+1. **`track.service.ts` :** Implémenter `uploadWithProgress(file: File, title: string): Observable<HttpEvent<Track>>` en ajoutant les options `{ reportProgress: true, observe: 'events' }` à l'appel `HttpClient.post`.
+2. **`tracks-page.ts` :**
+   - Écouter le flux d'événements dans le callback `next` : identifier `HttpEventType.UploadProgress` pour calculer le pourcentage via `Math.round((event.loaded * 100) / event.total)` et l'affecter au signal `uploadProgress`.
+   - Intercepter l'événement final `HttpEventType.Response` pour marquer le succès, afficher le message, purger le formulaire et recharger la liste depuis la première page.
+   - Gérer le bloc `error` pour réinitialiser la progression et afficher l'erreur serveur.
+3. **`tracks-page.html` :** Désactiver les champs de formulaire et le bouton d'envoi lorsque le signal `uploading()` est actif, et afficher la balise `<progress>` synchronisée.
+
+#### 4. Vérifications réalisées
+- Simulation de limitation de bande passante réseau (Network Throttling dans les DevTools) : observation de l'incrémentation fluide de la barre de progression et du libellé de pourcentage dans l'interface pendant l'envoi.
+- Vérification du verrouillage des contrôles : impossibilité de re-sélectionner un fichier ou de soumettre à nouveau le formulaire tant que le transfert n'est pas terminé.
+- Vérification de l'absence de toute donnée sensible (mot de passe ou token JWT) dans l'interface ou dans les journaux de la console du navigateur.
+
+#### 5. Erreurs ou propositions rejetées
+- Proposition de l'agent d'utiliser un calcul de progression simulé via un `setInterval` artificiel : rejetée au profit des événements réels transmis par le socket réseau via `HttpEventType.UploadProgress`.
+
+#### 6. Fichiers effectivement modifiés
+- `frontend-starter/src/app/shared/services/track.service.ts`
+- `frontend-starter/src/app/components/tracks-page/tracks-page.ts`
+- `frontend-starter/src/app/components/tracks-page/tracks-page.html`
+- `frontend-starter/src/app/components/tracks-page/tracks-page.css`
+
+#### 7. Preuves de fonctionnement
+- Échange avec l'IA sur les événements HTTP et le calcul de progression :  
+  ![Prompt progression upload](livrables/TP3/capture_ecran_TP3/capture_evenement_progression_upload.png)
+- Affichage de la barre de progression active et requête réseau en cours :  
+  ![Progression upload DevTools](livrables/TP3/capture_ecran_TP3/capture_upload_progress.png)
+
+#### 8. Ce que je sais expliquer sans l'agent
+- **Différence avec une requête HTTP standard :** Une requête standard produit un Observable qui n'émet qu'une seule valeur scalaire finale (le corps désérialisé) au moment où la réponse serveur est reçue. Avec `reportProgress: true` et `observe: 'events'`, l'Observable devient un flux d'événements continus qui émet successivement `Sent`, une série d'événements intermédiaires `UploadProgress` rythmés par le départ des paquets TCP, puis enfin `Response`.
+- **Calcul du pourcentage :** Les métadonnées binaires `event.loaded` (octets émis) et `event.total` (taille totale) fournies par l'API XMLHttpRequest permettent d'appliquer la formule arithmétique de progression en temps réel sans approximation.
+
+---
+
+### Mission 7 — Tests unitaires automatisés
+
+#### 1. Objectif
+Mettre en place une suite de tests unitaires frontend automatisés, déterministes et isolés du backend Express et de MongoDB Atlas, en utilisant `TestBed`, `HttpTestingController` et l'environnement moderne Vitest / jsdom d'Angular. Tester la transmission des paramètres de pagination, l'exécution de la suppression HTTP, et l'injection conditionnelle du JWT par l'intercepteur.
+
+#### 2. Prompt principal
+> « Écris les 3 tests unitaires complets et isolés avec Jasmine et HttpTestingController (sans dépendre du backend réel) :
+> 1. TrackService.list() transmettant correctement les paramètres page et limit ;
+> 2. authInterceptor injectant l'en-tête Authorization: Bearer <token> lorsqu'un token existe ;
+> 3. TrackService.delete() exécutant bien la méthode DELETE /api/tracks/:id. »
+
+#### 3. Plan proposé par l'agent
+1. Configurer l'environnement de test dans `angular.json` en ajoutant la cible `gpc:build:development` requise par le test runner moderne d'Angular.
+2. Installer `jsdom` en dépendance de développement pour exécuter les tests dans un environnement DOM virtuel sans navigateur lourd.
+3. Écrire `track.service.spec.ts` : tester `list(2, 5)` avec vérification des query params et de la méthode `GET`, puis tester `delete(id)` avec vérification de l'URL et de la méthode `DELETE`.
+4. Écrire `auth.interceptor.spec.ts` : tester l'injection du header `Authorization` avec un token présent dans le signal `AuthService.token()`, et vérifier son omission lorsque le signal vaut `null`.
+
+#### 4. Vérifications réalisées
+- Résolution des erreurs d'environnement (`Invalid Chai property: toBeTrue`) dues au runner moderne Vitest en remplaçant la syntaxe Jasmine spécifique par les assertions standards `toBe(true)` et `toBe(false)`.
+- Exécution de la commande `npm test -- --watch=false` : 4 tests exécutés avec succès (4/4 au vert) en moins d'une seconde.
+- Exécution de `npm run build` : validation de la compilation de production sans erreur de typage ni d'assemblage.
+
+#### 5. Erreurs ou propositions rejetées
+- L'agent avait initialement rédigé les assertions avec `toBeTrue()` et `toBeFalse()` (syntaxe Jasmine pure), ce qui provoquait l'échec des tests sous l'environnement Vitest / Chai du projet : correction immédiate avec `toBe(true)` et `toBe(false)`.
+
+#### 6. Fichiers créés / modifiés
+- `frontend-starter/angular.json`
+- `frontend-starter/src/app/shared/services/track.service.spec.ts`
+- `frontend-starter/src/app/shared/interceptors/auth.interceptor.spec.ts`
+- `livrables/TP3/RAPPORT_TESTS.html`
+
+#### 7. Preuves de fonctionnement
+- Échange avec l'IA sur l'écriture et la correction des tests unitaires :  
+  ![Prompt tests automatisés](livrables/TP3/capture_ecran_TP3/capture_test_unitaire_automatise.png)
+- Terminal confirmant le succès des 4 tests unitaires :  
+  ![Tests unitaires réussis](livrables/TP3/capture_ecran_TP3/capture_tests_reussis.png)
+- Terminal confirmant le succès de la commande `npm run build` :  
+  ![Build de production réussi](livrables/TP3/capture_ecran_TP3/capture_build_succes.png)
+
+#### 8. Ce que je sais expliquer sans l'agent
+- **Pourquoi les tests HTTP n'ont pas besoin de MongoDB :** Un test unitaire teste la logique interne d'une brique logicielle Angular en isolation stricte. `HttpTestingController` intercepte les requêtes en mémoire avant leur émission réseau et injecte des réponses simulées (`req.flush()`). Cela garantit une suite de tests rapide, reproductible et indépendante de l'état de la base de données.
+- **Différence entre test unitaire et test d'intégration :** Le test unitaire valide une unité de code isolée en simulant l'ensemble de ses dépendances. Le test d'intégration valide la collaboration effective entre plusieurs briques interconnectées (par exemple composant, service, intercepteur et routage) pour s'assurer de la cohérence globale des flux de données.
