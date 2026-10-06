@@ -1,7 +1,7 @@
 # Rapport d'usage de l'IA — TP1 et TP2
 
 ## Informations générales
-- **Étudiant :** Nordine (travail individuel)
+- **Étudiant :** BRAHMIA Noureddine (travail individuel)
 - **Modèles d'IA utilisés :** Cursor Agent / Claude 3.5 Sonnet (assisté par Gemini pour l'environnement et l'architecture réactive)
 - **Mesure de la consommation de tokens :** Suivi effectué via l'interface de l'éditeur (panneau des statistiques d'usage et compteurs de contexte).
 - **Critères de sélection du modèle :** Utilisation d'un modèle orienté ingénierie logicielle pour la rigueur sur l'architecture Angular moderne (standalone, inject, Signals, flux `@for`/`@if`) et la sécurité Web (JWT, Streams, Blob).
@@ -105,7 +105,7 @@ Implémenter la gestion de session utilisateur réactive et sécurisée avec Ang
 
 ---
 
-## TP2 — Bibliothèque, Upload et Lecture Audio
+## TP2 — Bibliothèque, Upload et Lecture Audiov
 
 ### Mission 2 — Bibliothèque paginée serveur
 
