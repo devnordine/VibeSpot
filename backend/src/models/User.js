@@ -17,6 +17,14 @@ const schema = new mongoose.Schema(
     },
     // select:false empêche de renvoyer le hash par défaut dans les requêtes.
     passwordHash: { type: String, required: true, select: false },
+    avatar: { type: String, default: "" },
+    bio: { type: String, trim: true, default: "" },
+    // Humeurs ou ambiances favorites (ex: travail, calme, festif, gourmand)
+    tastes: { type: [String], default: [] },
+    // Références vers les spots mis en favoris par l'utilisateur
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "Spot" }],
+    // Badges débloqués : "explorateur", "foodie", "photographe", "pionnier"
+    badges: { type: [String], default: ["pionnier"] },
   },
   { timestamps: true },
 );
@@ -48,12 +56,26 @@ schema.methods.verifyPassword = function (value) {
   return bcrypt.compare(value, this.passwordHash);
 };
 
+/** Ajoute un badge s'il n'est pas déjà présent. */
+schema.methods.awardBadge = function (badge) {
+  if (!this.badges.includes(badge)) {
+    this.badges.push(badge);
+    return true;
+  }
+  return false;
+};
+
 /** Retourne uniquement les champs qu'une réponse HTTP peut exposer. */
 schema.methods.toPublic = function () {
   return {
     id: this.id,
     name: this.name,
     email: this.email,
+    avatar: this.avatar || "",
+    bio: this.bio || "",
+    tastes: this.tastes || [],
+    favorites: (this.favorites || []).map((f) => (f._id ? String(f._id) : String(f))),
+    badges: this.badges || ["pionnier"],
     createdAt: this.createdAt,
   };
 };
