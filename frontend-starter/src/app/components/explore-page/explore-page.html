@@ -1,0 +1,44 @@
+<section class="explore">
+  <header class="explore-head">
+    <h1>Explorer les spots</h1>
+    <p>{{ spotService.total() }} lieu(x) trouvé(s)</p>
+  </header>
+
+  @if (spotService.error(); as error) {
+    <p class="state state-error" role="alert">{{ error }}</p>
+  }
+
+  @if (spotService.loading()) {
+    <p class="state">Chargement des spots…</p>
+  } @else {
+    <ul class="spot-grid">
+      @for (spot of spotService.spots(); track spot.id) {
+        <li class="spot-card">
+          <a [routerLink]="['/spots', spot.id]">
+            <strong>{{ spot.title }}</strong>
+            <span class="meta">{{ spot.category }} · {{ budgetLabel(spot.budget) }} · ★ {{ spot.ratingAverage }}</span>
+            <span class="moods">
+              @for (mood of spot.moods; track mood) {
+                <span class="mood">{{ mood }}</span>
+              }
+            </span>
+          </a>
+        </li>
+      } @empty {
+        @if (!spotService.error()) {
+          <li class="state">Aucun spot ne correspond à votre recherche.</li>
+        }
+      }
+    </ul>
+
+    <nav class="pager" aria-label="Pagination">
+      <button type="button" [disabled]="!spotService.hasPreviousPage()" (click)="spotService.load(spotService.page() - 1)">
+        Préc.
+      </button>
+      <span>Page {{ spotService.page() }} / {{ spotService.pages() }}</span>
+      <button type="button" [disabled]="!spotService.hasNextPage()" (click)="spotService.load(spotService.page() + 1)">
+        Suiv.
+      </button>
+    </nav>
+  }
+</section>

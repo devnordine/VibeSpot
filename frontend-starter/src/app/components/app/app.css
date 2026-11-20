@@ -52,6 +52,11 @@ header a:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
+header a.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
+}
+
 nav button {
   padding: 0.45rem 0.9rem;
   font-size: 0.85rem;

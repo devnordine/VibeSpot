@@ -38,7 +38,7 @@ export class LoginPageComponent {
 
     this.auth.login(values.email, values.password).subscribe({
       next: () => {
-        void this.router.navigateByUrl('/tracks');
+        void this.router.navigateByUrl('/explore');
       },
       error: (error: { error?: { message?: string } }) => {
         console.error('[LoginPage] Échec de connexion', error);

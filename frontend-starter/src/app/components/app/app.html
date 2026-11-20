@@ -1,16 +1,18 @@
 <header>
   <div>
-    <b>Guitar Practice Cloud</b>
-    <small>Le cloud qui manque à votre ampli</small>
+    <b>VibeSpot</b>
+    <small>Trouve le lieu qui colle à ton humeur</small>
   </div>
   <nav aria-label="Navigation principale">
-    <a routerLink="/tracks">Backing tracks</a>
-
     @if (authService.currentUser()) {
-      <a routerLink="/profile">Profil</a>
+      <a routerLink="/explore" routerLinkActive="active" ariaCurrentWhenActive="page">Explorer</a>
+      <a routerLink="/social" routerLinkActive="active" ariaCurrentWhenActive="page">Social</a>
+      <a routerLink="/lists" routerLinkActive="active" ariaCurrentWhenActive="page">Listes</a>
+      <a routerLink="/profile" routerLinkActive="active" ariaCurrentWhenActive="page">Profil</a>
       <button type="button" (click)="logout()">Déconnexion</button>
     } @else {
-      <a routerLink="/login">Connexion</a>
+      <a routerLink="/login" routerLinkActive="active">Connexion</a>
+      <a routerLink="/register" routerLinkActive="active">Inscription</a>
     }
   </nav>
 </header>

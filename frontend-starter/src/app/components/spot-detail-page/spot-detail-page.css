@@ -1,0 +1,19 @@
+.detail {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 5vw;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.meta,
+.state {
+  color: #5b6b66;
+}
+
+.state-error {
+  color: #b42318;
+}

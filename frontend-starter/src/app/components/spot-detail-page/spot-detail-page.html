@@ -1,0 +1,14 @@
+<section class="detail">
+  <a routerLink="/explore" class="back">← Retour à l'exploration</a>
+
+  @if (loading()) {
+    <p class="state">Chargement du spot…</p>
+  } @else if (error(); as message) {
+    <p class="state state-error" role="alert">{{ message }}</p>
+  } @else if (spot(); as s) {
+    <h1>{{ s.title }}</h1>
+    <p class="meta">{{ s.category }} · {{ s.address }} {{ s.city }}</p>
+    <p>{{ s.description }}</p>
+    <p class="meta">★ {{ s.ratingAverage }} ({{ s.ratingCount }} avis) · Affluence : {{ s.affluence }}</p>
+  }
+</section>

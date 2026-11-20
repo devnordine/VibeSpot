@@ -33,9 +33,9 @@ describe('authInterceptor', () => {
   });
 
   it('doit injecter l\'en-tête "Authorization: Bearer <token>" lorsqu\'un token est présent', () => {
-    httpClient.get('/api/tracks').subscribe();
+    httpClient.get('/api/spots').subscribe();
 
-    const req = httpMock.expectOne('/api/tracks');
+    const req = httpMock.expectOne('/api/spots');
 
     expect(req.request.headers.has('Authorization')).toBe(true);
     expect(req.request.headers.get('Authorization')).toBe('Bearer fake-jwt-token-xyz');
@@ -46,9 +46,9 @@ describe('authInterceptor', () => {
   it('ne doit pas injecter l\'en-tête "Authorization" si aucun token n\'est stocké', () => {
     mockAuthService.token.set(null);
 
-    httpClient.get('/api/tracks').subscribe();
+    httpClient.get('/api/spots').subscribe();
 
-    const req = httpMock.expectOne('/api/tracks');
+    const req = httpMock.expectOne('/api/spots');
 
     expect(req.request.headers.has('Authorization')).toBe(false);
 

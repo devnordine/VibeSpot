@@ -1,4 +1,4 @@
-/** Generic paginated response used by the tracks endpoint. */
+/** Réponse paginée générique (ex. `GET /api/spots`). */
 export interface Page<T> {
   items: T[];
   page: number;
