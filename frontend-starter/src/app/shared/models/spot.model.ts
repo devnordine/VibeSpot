@@ -33,8 +33,43 @@ export const CATEGORIES = [
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
 
+/** Libellés affichés pour chaque humeur. */
+export const MOOD_LABELS: Record<Mood, string> = {
+  travail: 'Travail',
+  calme: 'Calme',
+  festif: 'Festif',
+  gourmand: 'Gourmand',
+  sportif: 'Sportif',
+  photo: 'Photo',
+  romantique: 'Romantique',
+  nature: 'Nature',
+};
+
+/** Libellés affichés pour chaque catégorie. */
+export const CATEGORY_LABELS: Record<Category, string> = {
+  restaurant: 'Restaurant',
+  cafe: 'Café',
+  bar: 'Bar',
+  parc: 'Parc',
+  skatepark: 'Skatepark',
+  salle_concert: 'Salle de concert',
+  bibliotheque: 'Bibliothèque',
+  coworking: 'Coworking',
+  lieu_culturel: 'Lieu culturel',
+  terrain_sport: 'Terrain de sport',
+  autre: 'Autre',
+};
+
 /** 1 = €, 2 = €€, 3 = €€€ */
 export type Budget = 1 | 2 | 3;
+export const BUDGETS: readonly Budget[] = [1, 2, 3];
+
+export const AFFLUENCE_LABELS: Record<Affluence, string> = {
+  faible: 'Peu de monde',
+  moderee: 'Modérée',
+  elevee: 'Bondé',
+  inconnue: 'Inconnue',
+};
 
 export type Affluence = 'faible' | 'moderee' | 'elevee' | 'inconnue';
 
@@ -115,6 +150,11 @@ export interface ReviewPayload {
  * `radiusKm` est exprimé en kilomètres pour l'utilisateur ; le service le
  * convertit en `maxDistance` (mètres) attendu par l'API.
  */
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
+
 export interface SpotFilters {
   search?: string;
   mood?: Mood;

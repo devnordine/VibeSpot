@@ -11,10 +11,17 @@ export class AuthService {
   readonly currentUser = signal<User | null>(null);
   readonly token = signal<string | null>(localStorage.getItem('gpc_token'));
 
-  // Initialisation moderne déclenchée à l'instanciation
-  private readonly _initSession = this.token()
-    ? this.profile().subscribe({ error: () => this.logout() })
-    : null;
+  /**
+   * Recharge le profil si un token existe déjà (rechargement de page).
+   * Appelée par provideAppInitializer dans main.ts, une fois le service construit :
+   * si on le fait pendant la construction, l'intercepteur (qui injecte AuthService)
+   * provoque une dépendance circulaire et l'utilisateur est déconnecté à chaque F5.
+   */
+  restoreSession(): void {
+    if (this.token()) {
+      this.profile().subscribe({ error: () => this.logout() });
+    }
+  }
 
   login(email: string, password: string) {
     return this.http

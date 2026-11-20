@@ -1,0 +1,138 @@
+<div class="backdrop" (click)="close()"></div>
+
+<section class="modal" role="dialog" aria-modal="true" aria-labelledby="spot-form-title">
+  <header class="modal-head">
+    <h2 id="spot-form-title">Ajouter un spot</h2>
+    <button type="button" class="icon" aria-label="Fermer" [disabled]="submitting()" (click)="close()">✕</button>
+  </header>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="cols">
+      <div class="col">
+        <label for="spot-title">
+          Nom du lieu *
+          <input id="spot-title" type="text" formControlName="title" maxlength="80" />
+        </label>
+        @if (form.controls.title.touched && form.controls.title.invalid) {
+          <small class="field-error">Le nom est obligatoire.</small>
+        }
+
+        <label for="spot-category">
+          Catégorie *
+          <select id="spot-category" formControlName="category">
+            <option value="" disabled>Choisir…</option>
+            @for (category of categories; track category) {
+              <option [value]="category">{{ categoryLabels[category] }}</option>
+            }
+          </select>
+        </label>
+
+        <fieldset>
+          <legend>Humeurs</legend>
+          <div class="chips">
+            @for (mood of moods; track mood) {
+              <button
+                type="button"
+                class="chip mood-{{ mood }}"
+                [class.selected]="form.controls.moods.value.includes(mood)"
+                [attr.aria-pressed]="form.controls.moods.value.includes(mood)"
+                (click)="toggleMood(mood)"
+              >
+                {{ moodLabels[mood] }}
+              </button>
+            }
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Budget</legend>
+          <div class="chips">
+            @for (budget of budgets; track budget) {
+              <label class="radio">
+                <input type="radio" formControlName="budget" [value]="budget" />
+                {{ '€'.repeat(budget) }}
+              </label>
+            }
+          </div>
+        </fieldset>
+
+        <label for="spot-description">
+          Description
+          <textarea id="spot-description" rows="3" formControlName="description" maxlength="500"></textarea>
+        </label>
+
+        <div class="row-2">
+          <label for="spot-address">
+            Adresse
+            <input id="spot-address" type="text" formControlName="address" />
+          </label>
+          <label for="spot-city">
+            Ville
+            <input id="spot-city" type="text" formControlName="city" />
+          </label>
+        </div>
+      </div>
+
+      <div class="col">
+        <p class="label">Position * <small>(cliquez sur la carte)</small></p>
+        <div class="mini-map">
+          <app-spot-map [pickMode]="true" [pickedPoint]="pickedPoint()" (pointPicked)="pickPoint($event)" />
+        </div>
+        @if (pickedPoint(); as point) {
+          <small class="hint">📍 {{ point.lat.toFixed(5) }}, {{ point.lng.toFixed(5) }}</small>
+        } @else {
+          <small class="hint">Aucun point choisi.</small>
+        }
+
+        <label for="spot-photos">
+          Photos ({{ photos().length }}/{{ maxPhotos }}) — JPEG, PNG, WebP, GIF, 5 Mo max
+          <input
+            #fileInput
+            id="spot-photos"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            [disabled]="submitting() || photos().length >= maxPhotos"
+            (change)="onFilesSelected(fileInput.files); fileInput.value = ''"
+          />
+        </label>
+
+        @for (error of photoErrors(); track $index) {
+          <small class="field-error">{{ error }}</small>
+        }
+
+        @if (photos().length) {
+          <ul class="previews">
+            @for (photo of photos(); track photo.url; let i = $index) {
+              <li>
+                <img [src]="photo.url" [alt]="photo.file.name" />
+                @if (i === 0) {
+                  <span class="cover-tag">Couverture</span>
+                }
+                <button type="button" class="icon" [disabled]="submitting()" [attr.aria-label]="'Retirer ' + photo.file.name" (click)="removePhoto(i)">✕</button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </div>
+
+    @if (submitting()) {
+      <div class="progress">
+        <progress max="100" [value]="progress()"></progress>
+        <span>{{ progress() }} %</span>
+      </div>
+    }
+
+    @if (submitError(); as error) {
+      <p class="error" role="alert">{{ error }}</p>
+    }
+
+    <footer class="modal-foot">
+      <button type="button" class="ghost" [disabled]="submitting()" (click)="close()">Annuler</button>
+      <button type="submit" [disabled]="!canSubmit()">
+        {{ submitting() ? 'Envoi…' : 'Publier le spot' }}
+      </button>
+    </footer>
+  </form>
+</section>

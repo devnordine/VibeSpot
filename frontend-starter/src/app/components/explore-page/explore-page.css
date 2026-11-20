@@ -1,69 +1,212 @@
+/* Écran partagé : 45 % recherche / 55 % carte */
 .explore {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 2rem 5vw;
+  display: grid;
+  grid-template-columns: 45fr 55fr;
+  gap: 1.5rem;
+  align-items: start;
 }
 
-.explore-head p {
-  color: #5b6b66;
-  margin-top: 0.25rem;
+.explore-feed {
+  min-width: 0;
 }
 
+.explore-map {
+  position: sticky;
+  top: 5.5rem;
+  height: calc(100vh - 7rem);
+  min-height: 420px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  background: #e8efec;
+}
+
+.feed-head h1 {
+  margin: 0;
+}
+
+.feed-head p {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+}
+
+/* --- Filtres --- */
+.filters {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.chips,
+.budget {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-main);
+  background: #eef3f1;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+.chip:hover:not(:disabled) {
+  color: var(--text-main);
+  background: #e1ebe7;
+  transform: none;
+  box-shadow: none;
+}
+
+.chip.selected {
+  color: #ffffff;
+  background: var(--accent);
+}
+
+.chip.selected.mood-travail { background: var(--mood-travail); }
+.chip.selected.mood-calme { background: var(--mood-calme); }
+.chip.selected.mood-festif { background: var(--mood-festif); }
+.chip.selected.mood-gourmand { background: var(--mood-gourmand); }
+.chip.selected.mood-sportif { background: var(--mood-sportif); }
+.chip.selected.mood-photo { background: var(--mood-photo); }
+.chip.selected.mood-romantique { background: var(--mood-romantique); }
+.chip.selected.mood-nature { background: var(--mood-nature); }
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+label.inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+select {
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+}
+
+.radius input[type='range'] {
+  width: 160px;
+  padding: 0;
+  border: 0;
+  accent-color: var(--accent);
+}
+
+label.muted {
+  opacity: 0.55;
+}
+
+.geo-message {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.ghost {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  color: var(--accent);
+  background: transparent;
+  border: 1.5px solid var(--border);
+  box-shadow: none;
+}
+
+.ghost:hover:not(:disabled) {
+  color: #ffffff;
+}
+
+/* --- Résultats --- */
 .spot-grid {
   list-style: none;
   padding: 0;
-  margin: 1.5rem 0;
+  margin: 1rem 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 1rem;
 }
 
-.spot-card a {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding: 1rem;
-  border-radius: 10px;
-  background: #ffffff;
-  border: 1px solid #dfe7e4;
-  color: inherit;
+/* --- Carrousels --- */
+.highlight h2,
+.results-title {
+  margin: 1.25rem 0 0.6rem;
+  font-size: 1.1rem;
 }
 
-.spot-card a:hover {
-  border-color: #123d32;
-  text-decoration: none;
+.carousel {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0.5rem;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 210px;
+  gap: 0.8rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
 }
 
-.meta {
-  font-size: 0.85rem;
-  color: #5b6b66;
-}
-
-.moods {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-}
-
-.mood {
-  font-size: 0.75rem;
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  background: #e3f1ec;
-  color: #123d32;
+.carousel li {
+  scroll-snap-align: start;
 }
 
 .state {
-  color: #5b6b66;
+  color: var(--text-muted);
+  font-size: 0.85rem;
 }
 
-.state-error {
-  color: #b42318;
+/* --- Bouton flottant et message de confirmation --- */
+.fab {
+  position: fixed;
+  right: 2rem;
+  bottom: 2rem;
+  z-index: 900;
+  padding: 0.9rem 1.4rem;
+  border-radius: 999px;
+  box-shadow: var(--shadow-lg);
 }
 
-.pager {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 2rem;
+  z-index: 1100;
+  transform: translateX(-50%);
+  padding: 0.8rem 1.2rem;
+  color: #ffffff;
+  background: var(--primary);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+}
+
+@media (max-width: 900px) {
+  .explore {
+    grid-template-columns: 1fr;
+  }
+
+  /* La carte passe au-dessus de la liste */
+  .explore-map {
+    order: -1;
+    position: relative;
+    top: 0;
+    height: 320px;
+    min-height: 0;
+  }
 }

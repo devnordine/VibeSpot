@@ -1,44 +1,191 @@
 <section class="explore">
-  <header class="explore-head">
-    <h1>Explorer les spots</h1>
-    <p>{{ spotService.total() }} lieu(x) trouvé(s)</p>
-  </header>
+  <!-- Colonne gauche : recherche, filtres et résultats -->
+  <div class="explore-feed">
+    <header class="feed-head">
+      <h1>Explorer les spots</h1>
+      <p>{{ spotService.total() }} lieu(x) trouvé(s)</p>
+    </header>
 
-  @if (spotService.error(); as error) {
-    <p class="state state-error" role="alert">{{ error }}</p>
-  }
+    <div class="filters" aria-label="Filtres de recherche">
+      <input
+        type="search"
+        class="search"
+        placeholder="Rechercher un lieu, une ville, un tag…"
+        aria-label="Recherche"
+        [formControl]="searchControl"
+      />
 
-  @if (spotService.loading()) {
-    <p class="state">Chargement des spots…</p>
-  } @else {
-    <ul class="spot-grid">
-      @for (spot of spotService.spots(); track spot.id) {
-        <li class="spot-card">
-          <a [routerLink]="['/spots', spot.id]">
-            <strong>{{ spot.title }}</strong>
-            <span class="meta">{{ spot.category }} · {{ budgetLabel(spot.budget) }} · ★ {{ spot.ratingAverage }}</span>
-            <span class="moods">
-              @for (mood of spot.moods; track mood) {
-                <span class="mood">{{ mood }}</span>
-              }
-            </span>
-          </a>
-        </li>
-      } @empty {
-        @if (!spotService.error()) {
-          <li class="state">Aucun spot ne correspond à votre recherche.</li>
+      <div class="chips" role="group" aria-label="Humeur">
+        @for (mood of moods; track mood) {
+          <button
+            type="button"
+            class="chip mood-{{ mood }}"
+            [class.selected]="spotService.filters().mood === mood"
+            [attr.aria-pressed]="spotService.filters().mood === mood"
+            (click)="toggleMood(mood)"
+          >
+            {{ moodLabels[mood] }}
+          </button>
         }
-      }
-    </ul>
+      </div>
 
-    <nav class="pager" aria-label="Pagination">
-      <button type="button" [disabled]="!spotService.hasPreviousPage()" (click)="spotService.load(spotService.page() - 1)">
-        Préc.
-      </button>
-      <span>Page {{ spotService.page() }} / {{ spotService.pages() }}</span>
-      <button type="button" [disabled]="!spotService.hasNextPage()" (click)="spotService.load(spotService.page() + 1)">
-        Suiv.
-      </button>
-    </nav>
-  }
+      <div class="filter-row">
+        <label class="inline">
+          Catégorie
+          <select
+            #categorySelect
+            [value]="spotService.filters().category ?? ''"
+            (change)="selectCategory(categorySelect.value)"
+          >
+            <option value="">Toutes</option>
+            @for (category of categories; track category) {
+              <option [value]="category">{{ categoryLabels[category] }}</option>
+            }
+          </select>
+        </label>
+
+        <div class="budget" role="group" aria-label="Budget">
+          @for (budget of budgets; track budget) {
+            <button
+              type="button"
+              class="chip"
+              [class.selected]="spotService.filters().budget === budget"
+              [attr.aria-pressed]="spotService.filters().budget === budget"
+              (click)="toggleBudget(budget)"
+            >
+              {{ budgetLabel(budget) }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="filter-row">
+        @if (userPosition()) {
+          <button type="button" class="chip selected" (click)="stopLocate()">📍 Autour de moi ✕</button>
+        } @else {
+          <button type="button" class="chip" [disabled]="locating()" (click)="locate()">
+            {{ locating() ? 'Localisation…' : '📍 Autour de moi' }}
+          </button>
+        }
+
+        <label class="inline radius" [class.muted]="!userPosition()">
+          Rayon : {{ radiusValue() }} km
+          <input type="range" min="1" max="50" step="1" [formControl]="radiusKm" aria-label="Rayon de recherche en km" />
+        </label>
+
+        <button
+          type="button"
+          class="ghost"
+          [disabled]="spotService.activeFiltersCount() === 0"
+          (click)="resetFilters()"
+        >
+          Réinitialiser ({{ spotService.activeFiltersCount() }})
+        </button>
+      </div>
+
+      @if (geoMessage(); as message) {
+        <p class="geo-message" role="status">{{ message }}</p>
+      }
+    </div>
+
+    <!-- Carrousels affichés seulement quand aucun filtre n'est actif -->
+    @if (spotService.activeFiltersCount() === 0) {
+      @if (trending().length) {
+        <section class="highlight" aria-labelledby="trending-title">
+          <h2 id="trending-title">🔥 Tendance</h2>
+          <ul class="carousel">
+            @for (spot of trending(); track spot.id) {
+              <li>
+                <app-spot-card
+                  [spot]="spot"
+                  [compact]="true"
+                  [favorited]="favoriteIds().has(spot.id)"
+                  [pending]="favoritePending() === spot.id"
+                  (favoriteToggled)="toggleFavorite($event)"
+                />
+              </li>
+            }
+          </ul>
+        </section>
+      }
+
+      @if (recent().length) {
+        <section class="highlight" aria-labelledby="recent-title">
+          <h2 id="recent-title">🆕 Récemment ajoutés</h2>
+          <ul class="carousel">
+            @for (spot of recent(); track spot.id) {
+              <li>
+                <app-spot-card
+                  [spot]="spot"
+                  [compact]="true"
+                  [favorited]="favoriteIds().has(spot.id)"
+                  [pending]="favoritePending() === spot.id"
+                  (favoriteToggled)="toggleFavorite($event)"
+                />
+              </li>
+            }
+          </ul>
+        </section>
+      }
+    }
+
+    <h2 class="results-title">
+      {{ spotService.activeFiltersCount() === 0 ? 'Tous les spots' : 'Résultats' }}
+    </h2>
+
+    @if (errorMessage(); as error) {
+      <p class="error" role="alert">{{ error }}</p>
+    }
+
+    @if (spotService.loading()) {
+      <p class="state">Chargement des spots…</p>
+    } @else {
+      <ul class="spot-grid">
+        @for (spot of spotService.spots(); track spot.id) {
+          <li>
+            <app-spot-card
+              [spot]="spot"
+              [favorited]="favoriteIds().has(spot.id)"
+              [pending]="favoritePending() === spot.id"
+              (favoriteToggled)="toggleFavorite($event)"
+            />
+          </li>
+        } @empty {
+          @if (!spotService.error()) {
+            <li class="state">Aucun spot ne correspond à votre recherche.</li>
+          }
+        }
+      </ul>
+
+      <nav class="pager" aria-label="Pagination">
+        <button type="button" [disabled]="!spotService.hasPreviousPage()" (click)="spotService.load(spotService.page() - 1)">
+          Préc.
+        </button>
+        <span>Page {{ spotService.page() }} / {{ spotService.pages() }}</span>
+        <button type="button" [disabled]="!spotService.hasNextPage()" (click)="spotService.load(spotService.page() + 1)">
+          Suiv.
+        </button>
+      </nav>
+    }
+  </div>
+
+  <!-- Colonne droite : carte Leaflet -->
+  <div class="explore-map">
+    <app-spot-map
+      [markers]="markers()"
+      [userPosition]="userPosition()"
+      [radiusKm]="userPosition() ? radiusValue() : null"
+      (spotSelected)="openSpot($event)"
+    />
+  </div>
 </section>
+
+<button type="button" class="fab" (click)="formOpen.set(true)">+ Ajouter un spot</button>
+
+@if (formOpen()) {
+  <app-spot-form-modal (closed)="formOpen.set(false)" (created)="onSpotCreated($event)" />
+}
+
+@if (toast(); as message) {
+  <aside class="toast" role="status">{{ message }}</aside>
+}

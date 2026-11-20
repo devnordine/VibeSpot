@@ -29,6 +29,7 @@ export class SpotService {
   private readonly _filters = signal<SpotFilters>({ sort: 'recent' });
   private readonly _loading = signal(false);
   private readonly _error = signal<string | null>(null);
+  private readonly _errorStatus = signal<number | null>(null);
   private readonly _page = signal(1);
   private readonly _pages = signal(1);
   private readonly _total = signal(0);
@@ -37,6 +38,8 @@ export class SpotService {
   readonly filters = this._filters.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
+  /** Code HTTP de la dernière erreur (0 = serveur injoignable). */
+  readonly errorStatus = this._errorStatus.asReadonly();
   readonly page = this._page.asReadonly();
   readonly pages = this._pages.asReadonly();
   readonly total = this._total.asReadonly();
@@ -46,9 +49,9 @@ export class SpotService {
   readonly isEmpty = computed(() => !this._loading() && !this._error() && this._spots().length === 0);
   readonly hasNextPage = computed(() => this._page() < this._pages());
   readonly hasPreviousPage = computed(() => this._page() > 1);
-  /** Nombre de filtres actifs (hors tri), utile pour un badge « Filtres (n) ». */
+  /** Nombre de filtres actifs (hors tri et position), pour le bouton « Réinitialiser (n) ». */
   readonly activeFiltersCount = computed(() => {
-    const { sort: _sort, lat: _lat, lng: _lng, ...rest } = this._filters();
+    const { sort: _sort, lat: _lat, lng: _lng, radiusKm: _radius, ...rest } = this._filters();
     return Object.values(rest).filter((v) => v !== undefined && v !== '').length;
   });
 
@@ -119,10 +122,10 @@ export class SpotService {
     this.load(1);
   }
 
-  /** Réinitialise tous les filtres (conserve la position GPS éventuelle). */
+  /** Réinitialise les filtres (conserve la position GPS et le rayon « Autour de moi »). */
   resetFilters(): void {
-    const { lat, lng } = this._filters();
-    this._filters.set({ sort: 'recent', lat, lng });
+    const { lat, lng, radiusKm } = this._filters();
+    this._filters.set({ sort: 'recent', lat, lng, radiusKm });
     this.load(1);
   }
 
@@ -135,6 +138,7 @@ export class SpotService {
     this.loadSubscription?.unsubscribe();
     this._loading.set(true);
     this._error.set(null);
+    this._errorStatus.set(null);
 
     this.loadSubscription = this.list(this._filters(), page).subscribe({
       next: (res) => {
@@ -147,6 +151,7 @@ export class SpotService {
       error: (err: unknown) => {
         this._spots.set([]);
         this._error.set(SpotService.errorMessage(err));
+        this._errorStatus.set(err instanceof HttpErrorResponse ? err.status : null);
         this._loading.set(false);
       },
     });

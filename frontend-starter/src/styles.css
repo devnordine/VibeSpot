@@ -19,6 +19,17 @@
   --radius-md: 12px;
   --radius-lg: 18px;
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Couleurs des humeurs (puces de filtre + marqueurs de la carte) */
+  --mood-travail: #2563eb;
+  --mood-calme: #0d9488;
+  --mood-festif: #db2777;
+  --mood-gourmand: #ea580c;
+  --mood-sportif: #16a34a;
+  --mood-photo: #7c3aed;
+  --mood-romantique: #e11d48;
+  --mood-nature: #65a30d;
+  --mood-none: #64748b;
 }
 
 *, *::before, *::after {
@@ -35,7 +46,7 @@ body {
 }
 
 main {
-  max-width: 1080px;
+  max-width: 1320px;
   margin: 1rem auto; 
   padding: 0 1rem;
 }
@@ -207,3 +218,46 @@ audio {
     gap: 1.25rem;
   }
 }
+/* ===== Carte Leaflet (éléments créés par Leaflet, hors encapsulation Angular) ===== */
+.vs-pin {
+  display: block;
+  width: 26px;
+  height: 26px;
+  border: 3px solid #ffffff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--mood-none);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+.vs-pin--travail { background: var(--mood-travail); }
+.vs-pin--calme { background: var(--mood-calme); }
+.vs-pin--festif { background: var(--mood-festif); }
+.vs-pin--gourmand { background: var(--mood-gourmand); }
+.vs-pin--sportif { background: var(--mood-sportif); }
+.vs-pin--photo { background: var(--mood-photo); }
+.vs-pin--romantique { background: var(--mood-romantique); }
+.vs-pin--nature { background: var(--mood-nature); }
+.vs-pin--picked { background: var(--primary); }
+
+.vs-me {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: #2563eb;
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.25);
+}
+
+.vs-popup {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 180px;
+  font-family: var(--font-family);
+}
+.vs-popup strong { font-size: 0.95rem; }
+.vs-popup__meta { color: var(--text-muted); font-size: 0.8rem; }
+.vs-popup__actions { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.25rem; }
+.vs-popup__actions button { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
+.vs-popup__actions a { font-size: 0.8rem; }

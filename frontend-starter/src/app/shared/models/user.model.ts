@@ -4,4 +4,6 @@ export interface User {
   name: string;
   email: string;
   createdAt: string;
+  /** Identifiants des spots favoris (renvoyés par GET /api/users/me). */
+  favorites?: string[];
 }
