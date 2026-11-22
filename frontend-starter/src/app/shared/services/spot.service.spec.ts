@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpEventType, provideHttpClient } from '@angular/common/http';
+import { HttpErrorResponse, HttpEventType, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SpotService } from './spot.service';
@@ -151,6 +151,62 @@ describe('SpotService', () => {
     expect(service.error()).toBe('Erreur interne du serveur');
     expect(service.spots().length).toBe(0);
     expect(service.isEmpty()).toBe(false);
+  });
+
+  it('map(), trending() et toggleFavorite() appellent les bonnes routes', () => {
+    service.map({ mood: 'calme', category: undefined }).subscribe();
+    const map = httpMock.expectOne((r) => r.url === '/api/spots/map');
+    expect(map.request.params.get('mood')).toBe('calme');
+    expect(map.request.params.has('category')).toBe(false);
+    map.flush([]);
+
+    service.trending(3).subscribe();
+    httpMock.expectOne('/api/spots/trending?limit=3').flush([]);
+
+    service.toggleFavorite('a b').subscribe();
+    const fav = httpMock.expectOne('/api/spots/a%20b/favorite'); // id encodé dans l'URL
+    expect(fav.request.method).toBe('POST');
+    fav.flush({ favorited: true, favoritesCount: 1 });
+  });
+
+  it('addReview() et deleteReview() envoient le bon verbe et le bon corps', () => {
+    service.addReview('s1', { rating: 5, comment: 'Top' }).subscribe();
+    const add = httpMock.expectOne('/api/spots/s1/reviews');
+    expect(add.request.method).toBe('POST');
+    expect(add.request.body).toEqual({ rating: 5, comment: 'Top' });
+    add.flush(makeSpot());
+
+    service.deleteReview('s1', 'r9').subscribe();
+    const del = httpMock.expectOne('/api/spots/s1/reviews/r9');
+    expect(del.request.method).toBe('DELETE');
+    del.flush(makeSpot());
+  });
+
+  it('addPhoto() envoie le fichier dans le champ « photo »', () => {
+    service.addPhoto('s1', new File(['x'], 'a.png', { type: 'image/png' }), 'Vue mer').subscribe();
+    const req = httpMock.expectOne('/api/spots/s1/photos');
+    const body = req.request.body as FormData;
+    expect(body.get('photo') instanceof File).toBe(true);
+    expect(body.get('caption')).toBe('Vue mer');
+    req.flush(makeSpot());
+  });
+
+  it('resetFilters() garde la position et le rayon « Autour de moi »', () => {
+    service.updateFilters({ mood: 'festif', lat: 43.7, lng: 7.26, radiusKm: 3 });
+    httpMock.expectOne((r) => r.url === '/api/spots').flush(makePage([]));
+
+    service.resetFilters();
+    httpMock.expectOne((r) => r.url === '/api/spots').flush(makePage([]));
+
+    expect(service.filters()).toEqual({ sort: 'recent', lat: 43.7, lng: 7.26, radiusKm: 3 });
+    expect(service.activeFiltersCount()).toBe(0);
+  });
+
+  it('errorMessage() traduit les erreurs HTTP en messages lisibles', () => {
+    expect(SpotService.errorMessage(new HttpErrorResponse({ status: 0 }))).toContain('Serveur injoignable');
+    expect(SpotService.errorMessage(new HttpErrorResponse({ status: 404 }))).toBe('Spot introuvable.');
+    expect(SpotService.errorMessage(new HttpErrorResponse({ status: 502 }))).toBe('Erreur serveur (502).');
+    expect(SpotService.errorMessage(new Error('boom'))).toBe('Une erreur inattendue est survenue.');
   });
 
   it('updateFilters() fusionne les filtres, revient page 1 et annule la requête précédente', () => {

@@ -142,6 +142,46 @@ describe('SpotDetailPageComponent', () => {
     expect(other.querySelector('.delete')).toBeNull();
   });
 
+  it('supprime mon avis après confirmation', async () => {
+    const { fixture, el } = await setup(() => of(spotWithReviews));
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    el.querySelector<HTMLButtonElement>('.review .delete')!.click();
+    fixture.detectChanges();
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(spotService.deleteReview).toHaveBeenCalledWith('s1', 'r1');
+    confirmSpy.mockRestore();
+  });
+
+  it('refuse une photo invalide sans appeler l’API', async () => {
+    const { fixture, el } = await setup(() => of(spotWithReviews));
+    const input = el.querySelector<HTMLInputElement>('.actions input[type=file]')!;
+    Object.defineProperty(input, 'files', { configurable: true, value: [new File(['x'], 'doc.pdf', { type: 'application/pdf' })] });
+
+    input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(spotService.addPhoto).not.toHaveBeenCalled();
+    expect(el.querySelector('.notice-error')?.textContent).toContain('n\'est pas une image');
+  });
+
+  it('ajoute le spot à une liste choisie dans le menu', async () => {
+    const list = { id: 'l1', name: 'Couchers de soleil', description: '', ownerId: ME, isPublic: true, collaborators: [], spots: [], spotsCount: 0, createdAt: '', updatedAt: '' };
+    const { fixture, el } = await setup(() => of(spotWithReviews));
+    const listService = TestBed.inject(ListService) as unknown as { lists: ReturnType<typeof signal>; addSpotToList: ReturnType<typeof vi.fn> };
+    listService.lists.set([list]);
+    listService.addSpotToList.mockReturnValue(of(list));
+
+    [...el.querySelectorAll<HTMLButtonElement>('.action-btn')].find((b) => b.textContent?.includes('Ajouter à une liste'))!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLButtonElement>('.lists-dropdown button')!.click();
+    fixture.detectChanges();
+
+    expect(listService.addSpotToList).toHaveBeenCalledWith('l1', 's1');
+    expect(el.querySelector('.notice-success')?.textContent).toContain('Couchers de soleil');
+  });
+
   it('affiche le panneau de partage seulement pour le créateur', async () => {
     const owner = await setup(() => of(spotWithReviews), ME);
     expect(owner.el.querySelector('app-share-panel')).not.toBeNull();

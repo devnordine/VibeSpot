@@ -30,12 +30,19 @@ class SpotFormModalStub {
 function createSpotServiceMock(spots: Spot[] = []) {
   const filters = signal<SpotFilters>({ sort: 'recent' });
   const list = signal(spots);
+  const error = signal<string | null>(null);
+  const errorStatus = signal<number | null>(null);
   return {
     spots: list.asReadonly(),
     filters: filters.asReadonly(),
     loading: signal(false).asReadonly(),
-    error: signal<string | null>(null).asReadonly(),
-    errorStatus: signal<number | null>(null).asReadonly(),
+    error: error.asReadonly(),
+    errorStatus: errorStatus.asReadonly(),
+    /** Utilitaire de test : simule une erreur renvoyée par load(). */
+    setError: (message: string, status: number) => {
+      error.set(message);
+      errorStatus.set(status);
+    },
     total: computed(() => list().length),
     page: signal(1).asReadonly(),
     pages: signal(1).asReadonly(),
@@ -113,6 +120,59 @@ describe('ExplorePageComponent', () => {
     const fixture = await setup([]);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain(
       'Aucun spot ne correspond à votre recherche.',
+    );
+  });
+
+  it('le cœur met à jour le compteur sans recharger la liste', async () => {
+    const spot = makeSpot({ id: 'a', favoritesCount: 3 });
+    const fixture = await setup([spot]);
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.spot-grid .fav')!.click();
+
+    expect(spotService.toggleFavorite).toHaveBeenCalledWith('a');
+    expect(spotService.patchLocal).toHaveBeenCalledWith({ ...spot, favoritesCount: 4 });
+    expect(spotService.load).toHaveBeenCalledTimes(1); // seulement le chargement initial
+  });
+
+  it('« Autour de moi » envoie lat, lng et le rayon quand la position est acceptée', async () => {
+    const fixture = await setup();
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: (ok: PositionCallback) => ok({ coords: { latitude: 43.7, longitude: 7.26 } } as GeolocationPosition) },
+    });
+
+    [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent?.includes('Autour de moi'))!.click();
+
+    expect(spotService.updateFilters).toHaveBeenCalledWith({ lat: 43.7, lng: 7.26, radiusKm: 10 });
+  });
+
+  it('affiche un message et n’envoie pas de position si elle est refusée', async () => {
+    const fixture = await setup();
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (_ok: PositionCallback, ko: PositionErrorCallback) =>
+          ko({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+      },
+    });
+    const el: HTMLElement = fixture.nativeElement;
+
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Autour de moi'))!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('.geo-message')?.textContent).toContain('Position refusée');
+    expect(spotService.updateFilters).not.toHaveBeenCalled();
+  });
+
+  it('remplace l’erreur 500 du filtre de distance par un message compréhensible', async () => {
+    const fixture = await setup();
+    spotService.setError('Erreur interne du serveur', 500);
+    spotService.updateFilters({ lat: 43.7, lng: 7.26 });
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.error')?.textContent).toContain(
+      'recherche par distance est momentanément indisponible',
     );
   });
 

@@ -1,5 +1,9 @@
 import { Component, input, output } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { HttpErrorResponse, HttpEventType, HttpResponse } from '@angular/common/http';
+import { of, throwError } from 'rxjs';
+import { Spot } from '../../shared/models/spot.model';
+import { makeSpot } from '../../shared/testing/spot-fixtures';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_PHOTO_SIZE, SpotFormModalComponent, validatePhoto } from './spot-form-modal';
 import { SpotMapComponent } from '../spot-map/spot-map';
@@ -105,6 +109,73 @@ describe('SpotFormModalComponent', () => {
     expect(el.querySelectorAll('.previews li').length).toBe(1);
     expect(el.querySelectorAll('.field-error').length).toBe(2);
     expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+  });
+
+  /** Remplit les champs obligatoires et place le point sur la carte. */
+  async function fillRequired(fixture: Awaited<ReturnType<typeof setup>>['fixture'], el: HTMLElement) {
+    await type(fixture, el.querySelector<HTMLInputElement>('#spot-title')!, 'Rooftop du Port');
+    await type(fixture, el.querySelector<HTMLSelectElement>('#spot-category')!, 'bar');
+    const map = fixture.debugElement.query((d) => d.componentInstance instanceof SpotMapStub);
+    (map.componentInstance as SpotMapStub).pointPicked.emit({ lat: 43.7, lng: 7.27 });
+    fixture.detectChanges();
+    await fixture.whenStable();
+  }
+
+  it('envoie le spot avec la 1re photo, puis les suivantes une par une', async () => {
+    const spotService = TestBed.inject(SpotService) as unknown as { create: ReturnType<typeof vi.fn>; addPhoto: ReturnType<typeof vi.fn> };
+    const created = makeSpot({ id: 'new1', title: 'Rooftop du Port' });
+    spotService.create.mockReturnValue(of({ type: HttpEventType.UploadProgress, loaded: 50, total: 100 }, new HttpResponse({ body: created })));
+    spotService.addPhoto.mockReturnValue(of(new HttpResponse({ body: created })));
+
+    const { fixture, el, submit } = await setup();
+    await fillRequired(fixture, el);
+    fixture.componentInstance.onFilesSelected([fakeFile('1.jpg', 'image/jpeg'), fakeFile('2.jpg', 'image/jpeg'), fakeFile('3.jpg', 'image/jpeg')]);
+    fixture.detectChanges();
+
+    let result: { spot: Spot; failedPhotos: number } | undefined;
+    fixture.componentInstance.created.subscribe((r) => (result = r));
+    submit().click();
+
+    const body = spotService.create.mock.calls[0][0] as FormData;
+    expect(body.get('title')).toBe('Rooftop du Port');
+    expect(body.get('category')).toBe('bar');
+    expect(body.get('latitude')).toBe('43.7');
+    expect((body.get('photo') as File).name).toBe('1.jpg');
+    // les 2 autres photos partent ensuite vers /photos du spot créé
+    expect(spotService.addPhoto).toHaveBeenCalledTimes(2);
+    expect(spotService.addPhoto.mock.calls[1][0]).toBe('new1');
+    expect(result).toEqual({ spot: created, failedPhotos: 0 });
+  });
+
+  it('garde le spot créé même si une photo supplémentaire échoue', async () => {
+    const spotService = TestBed.inject(SpotService) as unknown as { create: ReturnType<typeof vi.fn>; addPhoto: ReturnType<typeof vi.fn> };
+    const created = makeSpot({ id: 'new1' });
+    spotService.create.mockReturnValue(of(new HttpResponse({ body: created })));
+    spotService.addPhoto.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 413 })));
+
+    const { fixture, el, submit } = await setup();
+    await fillRequired(fixture, el);
+    fixture.componentInstance.onFilesSelected([fakeFile('1.jpg', 'image/jpeg'), fakeFile('2.jpg', 'image/jpeg')]);
+    fixture.detectChanges();
+
+    let result: { spot: Spot; failedPhotos: number } | undefined;
+    fixture.componentInstance.created.subscribe((r) => (result = r));
+    submit().click();
+
+    expect(result).toEqual({ spot: created, failedPhotos: 1 });
+  });
+
+  it('affiche l’erreur du serveur et réactive le bouton si la création échoue', async () => {
+    const spotService = TestBed.inject(SpotService) as unknown as { create: ReturnType<typeof vi.fn> };
+    spotService.create.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { message: 'Titre et catégorie requis' } })));
+
+    const { fixture, el, submit } = await setup();
+    await fillRequired(fixture, el);
+    submit().click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('.error')?.textContent).toContain('Titre et catégorie requis');
+    expect(submit().disabled).toBe(false);
   });
 
   it('limite à 5 photos', async () => {

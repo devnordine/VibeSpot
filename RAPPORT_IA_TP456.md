@@ -250,3 +250,108 @@ Tests et build au vert après la fusion (39/39).
 ### 8. Ce que je sais expliquer sans l'agent
 - Un `package-lock.json` en conflit ne se corrige pas à la main : on garde une version, on fusionne le `package.json`, puis on régénère le lock avec `npm install`.
 - `--no-commit` permet de vérifier et corriger la fusion (build, tests) avant de la valider.
+
+---
+
+## Mission 4.1 - Couverture des tests de ma partie
+
+### 1. Objectif
+Mesurer la couverture des tests sur ma partie et ajouter des tests là où la logique n'était pas vérifiée.
+
+### 2. Prompt principal
+> « Mesure la couverture des tests avec `npx ng test --watch=false --coverage` (installe le fournisseur de couverture adapté à notre version de Vitest). Pour les fichiers de ma partie (`spot.service`, `spot-card`, `spot-map`, `explore-page`, `spot-form-modal`, `spot-detail-page`, `directions`, et `restoreSession` dans `auth.service`), repère la logique non testée et ajoute des tests utiles : envoi complet de la modale de création (photos une par une, photo en échec, erreur serveur), géolocalisation acceptée et refusée, message pour l'erreur 500, favori sans rechargement, suppression d'avis, photo refusée, ajout à une liste, et la carte Leaflet (marqueurs, popup sans HTML exécuté). Ne baisse pas l'exigence des tests existants. »
+
+### 3. Plan proposé par l'agent
+1. Installer `@vitest/coverage-v8` en version 4.1.11, comme Vitest.
+2. Commencer par les petites unités (`directions`, `auth.service`, routes manquantes de `spot.service`), puis les composants.
+3. Tester la vraie carte Leaflet dans jsdom au lieu de la remplacer, pour vérifier la sécurité des popups.
+
+### 4. Vérifications réalisées
+- 74 tests sur 74 au vert (27 nouveaux).
+- Couverture des lignes de ma partie : `spot.service` 99 %, `spot-card` 100 %, `spot-map` 92 % (avant : 2 %), `spot-form-modal` 89 % (avant : 47 %), `auth.service` 80 % (avant : 5 %), `spot-detail-page` 78 %, `explore-page` 74 %.
+
+### 5. Erreurs, interrogations et arbitrages techniques
+- **Les fichiers `.html` sont à 0 %** dans le rapport de couverture alors que les tests les affichent : l'outil ne suit pas les templates Angular. On regarde seulement les fichiers `.ts`.
+- **Le total du projet reste à 53 %** car il compte aussi la partie B. Je n'ai pas modifié ses fichiers.
+- **jsdom n'a pas `ResizeObserver`** (utilisé par la carte) : on ajoute une version vide dans le test.
+- Le dossier `coverage/` généré a été ajouté au `.gitignore`.
+
+### 6. Fichiers effectivement créés / modifiés
+- Créés : `directions.spec.ts`, `auth.service.spec.ts`, `spot-map.spec.ts`
+- Complétés : `spot.service.spec.ts`, `spot-form-modal.spec.ts`, `explore-page.spec.ts`, `spot-detail-page.spec.ts`
+- `package.json` (`@vitest/coverage-v8`), `frontend-starter/.gitignore`
+
+### 7. Preuve de fonctionnement
+![Couverture de ma partie](livrables/TP4/capture_ecran_TP4/capture_M4_couverture.png)
+
+### 8. Ce que je sais expliquer sans l'agent
+- La couverture dit quelles lignes ont été exécutées par les tests, pas si elles sont bien vérifiées : un test sans `expect` augmente la couverture sans rien prouver.
+- Le test de la popup vérifie qu'un titre comme `<b id="xss">` s'affiche en texte et ne crée pas d'élément dans la page : c'est ce qui protège contre le XSS.
+
+---
+
+## Mission 4.2 - Revue de qualité, dépendances et build de production
+
+### 1. Objectif
+Vérifier que ma partie respecte les règles du projet, que les dépendances livrées n'ont pas de faille connue, et que le build de production passe sans erreur.
+
+### 2. Prompt principal
+> « Fais une revue de qualité de ma partie du frontend : cherche les `any`, les `console.log`, les styles en ligne et les abonnements ou minuteurs qui ne sont pas libérés quand on quitte une page, et corrige ce qui pose problème. Lance `npm audit` en séparant les dépendances livrées à l'utilisateur de celles qui servent seulement au développement, et corrige ce qui peut l'être sans changement de version majeure. Termine par `npx ng build`, les tests, et une vérification dans le navigateur qu'aucune page n'affiche d'erreur dans la console. »
+
+### 3. Plan proposé par l'agent
+1. Recherche automatique des points interdits dans les fichiers de ma partie.
+2. `npm audit --omit=dev` pour isoler ce qui est vraiment livré, puis `npm audit fix` (sans `--force`).
+3. Ouvrir chaque page dans Chrome avec la vraie base et relever les erreurs de la console.
+
+### 4. Vérifications réalisées
+- Aucun `any`, aucun style en ligne, seul `console` : le `console.error` du démarrage d'Angular (normal).
+- Dépendances livrées : 0 faille après `npm audit fix`.
+- Les 5 pages (`/explore`, `/spots/:id`, `/social`, `/lists`, `/profile`) se chargent sans aucune erreur dans la console.
+- 74 tests au vert, build OK : 96 kB compressés au chargement initial, Leaflet chargé seulement sur les pages qui ont une carte.
+
+### 5. Erreurs, interrogations et arbitrages techniques
+- **Minuteur non libéré :** le message de confirmation de `explore-page` (4 s) n'était pas annulé si on quittait la page. Ajout de `clearTimeout` dans `DestroyRef.onDestroy`.
+- **Faille `zod` (élevée)** dans une dépendance d'`@angular/forms` : corrigée par `npm audit fix` (passage en 4.6.6, sans rupture).
+- **5 failles restantes** dans `vite` et `@vitest/mocker` : ce sont des outils de développement, non livrés à l'utilisateur. Les corriger demanderait de changer la version de Vitest : on ne l'a pas fait.
+- **404 sur `favicon.ico` sur toutes les pages :** ajout d'une icône `favicon.svg`.
+
+### 6. Fichiers effectivement modifiés
+`explore-page.ts`, `package-lock.json`, `src/index.html`, `public/favicon.svg` (créé).
+
+### 7. Preuve de fonctionnement
+![Build de production](livrables/TP4/capture_ecran_TP4/capture_M4_build.png)
+
+### 8. Ce que je sais expliquer sans l'agent
+- Une requête HTTP d'Angular se termine toute seule après la réponse, donc pas besoin de se désabonner. Un `valueChanges` ou un `setTimeout`, lui, continue tant qu'on ne l'arrête pas.
+- `npm audit --omit=dev` montre seulement ce qui part dans l'appli livrée. Une faille dans un outil de test est moins grave qu'une faille dans le code envoyé au navigateur.
+
+---
+
+## Mission 4.3 - Rédaction de `REPORT.md`
+
+### 1. Objectif
+Rédiger le rapport technique final du projet, commun aux deux parties.
+
+### 2. Prompt principal
+> « Rédige `REPORT.md` à la racine, pour un lecteur qui découvre le projet (enseignant, jury) : présentation de VibeSpot, fonctionnalités par page avec la partie (A ou B) qui les a faites, architecture du frontend et du backend, modèles de données, sécurité (JWT, contrôle d'accès, validation des fichiers), comment lancer le projet sans jamais écrire de secret, résultats des tests et du build, problèmes rencontrés et corrigés, limites et pistes. Base-toi uniquement sur le code et sur les deux rapports IA, et renvoie vers `API_CONTRACT.md` au lieu de recopier toutes les routes. »
+
+### 3. Plan proposé par l'agent
+Relire le code, `API_CONTRACT.md`, `ATLAS_SETUP.md` et le rapport IA de mon binôme pour sa partie, puis écrire un document court en tableaux, avec des renvois vers les autres fichiers plutôt que des copies.
+
+### 4. Vérifications réalisées
+- Chaque chiffre du rapport vient d'une commande lancée dans cette mission : 74 tests, 37 routes Express, 96 kB au chargement initial, 0 faille livrée.
+- Aucun secret : la configuration du `.env` est décrite avec des valeurs à remplacer (`<user>`, `<password>`).
+
+### 5. Erreurs, interrogations et arbitrages techniques
+- **`README.md` parle d'un `backend/.env.example` qui n'existe pas.** On ne l'a pas créé (c'est le backend de mon binôme) : les variables nécessaires sont décrites dans le rapport, et le problème est noté dans les limites.
+- **Partie B décrite à partir de son code et de son rapport,** sans modifier ses fichiers.
+
+### 6. Fichiers effectivement créés
+`REPORT.md`
+
+### 7. Preuve de fonctionnement
+Pas de capture : c'est un document. Il est à la racine du dépôt.
+
+### 8. Ce que je sais expliquer sans l'agent
+- Le rapport technique explique *ce qui a été construit et comment*, alors que le rapport IA explique *comment on a utilisé l'IA* pour le construire.
+- On renvoie vers `API_CONTRACT.md` plutôt que de recopier les routes : un seul endroit à mettre à jour si l'API change.

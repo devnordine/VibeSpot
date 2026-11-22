@@ -94,6 +94,9 @@ export class ExplorePageComponent implements OnInit {
   });
 
   constructor() {
+    // Annule le minuteur du message si on quitte la page avant les 4 s.
+    this.destroyRef.onDestroy(() => clearTimeout(this.toastTimer));
+
     // Le rayon n'est envoyé au serveur que si la position est connue, et pas à chaque cran du curseur.
     this.radiusKm.valueChanges
       .pipe(debounceTime(250), distinctUntilChanged(), takeUntilDestroyed())
