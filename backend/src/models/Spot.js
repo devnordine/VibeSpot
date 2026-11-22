@@ -98,6 +98,18 @@ const spotSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    visibility: {
+      type: String,
+      enum: ["PUBLIC", "FRIENDS", "PRIVATE"],
+      default: "PUBLIC",
+      index: true,
+    },
+    sharedWith: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     reviews: [reviewSchema],
     ratingAverage: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0 },
@@ -145,6 +157,8 @@ spotSchema.methods.toPublic = function () {
       createdAt: p.createdAt,
     })),
     createdBy: String(this.createdBy),
+    visibility: this.visibility || "PUBLIC",
+    sharedWith: (this.sharedWith || []).map((u) => (u._id ? String(u._id) : String(u))),
     ratingAverage: Math.round((this.ratingAverage || 0) * 10) / 10,
     ratingCount: this.ratingCount || 0,
     favoritesCount: this.favoritesCount || 0,

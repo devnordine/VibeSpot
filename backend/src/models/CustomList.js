@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 
 /*
- * Modèle pour les listes personnalisées de lieux (ex: "Mes cafés préférés pour réviser",
- * "Spots photo coucher de soleil", etc.)
+- Modèle pour les listes personnalisées de lieux (ex: "Mes cafés préférés pour réviser",
+- "Spots photo coucher de soleil", etc.) avec support collaboratif.
  */
 const customListSchema = new mongoose.Schema(
   {
@@ -15,6 +15,12 @@ const customListSchema = new mongoose.Schema(
       index: true,
     },
     isPublic: { type: Boolean, default: true },
+    collaborators: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     spots: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -32,7 +38,12 @@ customListSchema.methods.toPublic = function () {
     description: this.description,
     ownerId: String(this.ownerId),
     isPublic: this.isPublic,
-    spots: this.spots,
+    collaborators: (this.collaborators || []).map((c) =>
+      c._id
+        ? { id: String(c._id), name: c.name, email: c.email, avatar: c.avatar || "" }
+        : String(c),
+    ),
+    spots: (this.spots || []).map((s) => (s.toPublic ? s.toPublic() : s)),
     spotsCount: this.spots ? this.spots.length : 0,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
@@ -40,4 +51,3 @@ customListSchema.methods.toPublic = function () {
 };
 
 export const CustomList = mongoose.model("CustomList", customListSchema);
-

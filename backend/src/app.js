@@ -10,6 +10,7 @@ import { User } from "./models/User.js";
 import { Track } from "./models/Track.js";
 import { Spot } from "./models/Spot.js";
 import { CustomList } from "./models/CustomList.js";
+import mongoose from "mongoose";
 
 // Les fichiers médias (photos des spots, fichiers audio) restent sur le disque.
 const UPLOADS = path.resolve("data/uploads");
@@ -91,6 +92,69 @@ function optionalAuth(req, _res, next) {
   next();
 }
 
+/**
+- Construit le filtre MongoDB garantissant qu'un utilisateur ne voit que :
+- - les spots PUBLIC (ou sans champ visibility pour rétrocompatibilité),
+- - ses propres spots,
+- - les spots FRIENDS créés par ses amis,
+- - les spots PRIVATE explicitement partagés avec lui (sharedWith).
+ */
+async function buildSpotAccessFilter(currentUserId) {
+  const publicConditions = [
+    { visibility: "PUBLIC" },
+    { visibility: { $exists: false } },
+  ];
+
+  if (!currentUserId || !mongoose.isValidObjectId(currentUserId)) {
+    return { $or: publicConditions };
+  }
+
+  const user = await User.findById(currentUserId).select("friends").lean();
+  const friendIds = user?.friends || [];
+
+  return {
+    $or: [
+      ...publicConditions,
+      { createdBy: currentUserId },
+      { visibility: "FRIENDS", createdBy: { $in: friendIds } },
+      { visibility: "PRIVATE", sharedWith: currentUserId },
+    ],
+  };
+}
+
+/**
+- Vérifie si un utilisateur donné a le droit de consulter un spot précis.
+ */
+async function canAccessSpot(spot, currentUserId) {
+  const visibility = spot.visibility || "PUBLIC";
+  if (visibility === "PUBLIC") return true;
+  if (!currentUserId) return false;
+
+  const userIdStr = String(currentUserId);
+  if (String(spot.createdBy) === userIdStr) return true;
+
+  if (visibility === "PRIVATE") {
+    return (spot.sharedWith || []).some((id) => String(id) === userIdStr);
+  }
+
+  if (visibility === "FRIENDS") {
+    const owner = await User.findById(spot.createdBy).select("friends").lean();
+    return (owner?.friends || []).some((id) => String(id) === userIdStr);
+  }
+
+  return false;
+}
+
+/**
+- Vérifie si un utilisateur est propriétaire ou collaborateur d'une liste.
+ */
+function canEditList(list, userId) {
+  if (!userId) return false;
+  const uid = String(userId);
+  if (String(list.ownerId) === uid) return true;
+  return (list.collaborators || []).some((c) => String(c._id || c) === uid);
+}
+
 // Configuration de Multer pour le stockage disque
 const storage = multer.diskStorage({
   destination: (_request, _file, callback) => {
@@ -138,16 +202,16 @@ export function createApp() {
   // Servir les uploads statiquement (photos des spots)
   app.use("/uploads", express.static(UPLOADS));
 
-  // =========================================================================
+  
   // ROUTE HEALTHCHECK
-  // =========================================================================
+  
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", app: "VibeSpot API" });
   });
 
-  // =========================================================================
+  
   // ROUTES AUTHENTIFICATION ET UTILISATEURS
-  // =========================================================================
+  
 
   /**
    * Inscription d'un nouvel utilisateur.
@@ -259,9 +323,9 @@ export function createApp() {
     }
   });
 
-  // =========================================================================
+  
   // ROUTES VIBESPOT : SPOTS (LIEUX PAR HUMEUR, CARTE, FILTRES, POPULAIRES)
-  // =========================================================================
+  
 
   /**
    * Liste paginée des spots avec filtrage riche :
@@ -273,50 +337,53 @@ export function createApp() {
    * - lat, lng, maxDistance (en mètres) : filtrage géospatial par distance
    * - sort : popular (popularité), recent (plus récents), rating (meilleure note)
    */
-  app.get("/api/spots", async (req, res, next) => {
+  /**
+- Liste paginée des spots avec filtrage riche et contrôle d'accès ACL.
+   */
+  app.get("/api/spots", optionalAuth, async (req, res, next) => {
     try {
       const page = Math.max(1, Number(req.query.page) || 1);
       const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
 
+      const accessFilter = await buildSpotAccessFilter(req.auth?.sub);
+      const andConditions = [accessFilter];
       const filter = {};
 
-      // Filtrer par humeur / mood
-      if (req.query.mood) {
-        filter.moods = req.query.mood;
+      if (req.query.mood) filter.moods = req.query.mood;
+      if (req.query.category) filter.category = req.query.category;
+      if (req.query.budget) filter.budget = Number(req.query.budget);
+      if (req.query.city) filter.city = new RegExp(String(req.query.city).trim(), "i");
+
+      // Filtre optionnel de visibilité ("PUBLIC", "FRIENDS", "PRIVATE", "SHARED_WITH_ME")
+      if (req.query.visibility) {
+        const vis = String(req.query.visibility).toUpperCase();
+        if (vis === "SHARED_WITH_ME" && req.auth?.sub) {
+          filter.visibility = "PRIVATE";
+          filter.sharedWith = req.auth.sub;
+        } else if (["PUBLIC", "FRIENDS", "PRIVATE"].includes(vis)) {
+          filter.visibility = vis;
+        }
       }
 
-      // Filtrer par catégorie
-      if (req.query.category) {
-        filter.category = req.query.category;
-      }
-
-      // Filtrer par budget
-      if (req.query.budget) {
-        filter.budget = Number(req.query.budget);
-      }
-
-      // Filtrer par ville
-      if (req.query.city) {
-        filter.city = new RegExp(String(req.query.city).trim(), "i");
-      }
-
-      // Recherche textuelle
       if (req.query.search) {
         const regex = new RegExp(String(req.query.search).trim(), "i");
-        filter.$or = [
-          { title: regex },
-          { description: regex },
-          { city: regex },
-          { address: regex },
-          { tags: regex },
-        ];
+        andConditions.push({
+          $or: [
+            { title: regex },
+            { description: regex },
+            { city: regex },
+            { address: regex },
+            { tags: regex },
+          ],
+        });
       }
 
-      // Filtrage par distance géospatiale si lat et lng sont fournies
+      filter.$and = andConditions;
+
       if (req.query.lat && req.query.lng) {
         const lat = Number(req.query.lat);
         const lng = Number(req.query.lng);
-        const maxDist = Number(req.query.maxDistance) || 10000; // 10 km par défaut
+        const maxDist = Number(req.query.maxDistance) || 10000;
 
         if (!isNaN(lat) && !isNaN(lng)) {
           filter.location = {
@@ -331,7 +398,6 @@ export function createApp() {
         }
       }
 
-      // Définir le tri
       let sort = { createdAt: -1 };
       if (req.query.sort === "popular") {
         sort = { ratingAverage: -1, favoritesCount: -1 };
@@ -341,7 +407,6 @@ export function createApp() {
         sort = { createdAt: -1 };
       }
 
-      // Requêtes parallèles pour items et total
       const [items, total] = await Promise.all([
         Spot.find(filter)
           .sort(sort)
@@ -363,18 +428,21 @@ export function createApp() {
   });
 
   /**
-   * Données allégées pour la carte interactive (markers).
-   * Retourne tous les spots ou filtrés par ville / humeur avec coordonnées.
+- Données allégées pour la carte interactive (filtrées selon les droits ACL).
    */
-  app.get("/api/spots/map", async (req, res, next) => {
+  app.get("/api/spots/map", optionalAuth, async (req, res, next) => {
     try {
-      const filter = {};
+      const accessFilter = await buildSpotAccessFilter(req.auth?.sub);
+      const filter = { $and: [accessFilter] };
+
       if (req.query.mood) filter.moods = req.query.mood;
       if (req.query.category) filter.category = req.query.category;
       if (req.query.city) filter.city = new RegExp(String(req.query.city).trim(), "i");
 
       const spots = await Spot.find(filter)
-        .select("title category moods budget address city location coverPhoto ratingAverage")
+        .select(
+          "title category moods budget address city location coverPhoto ratingAverage visibility",
+        )
         .limit(200);
 
       const markers = spots.map((s) => ({
@@ -389,6 +457,7 @@ export function createApp() {
         latitude: s.location?.coordinates?.[1],
         coverPhoto: s.coverPhoto,
         ratingAverage: s.ratingAverage,
+        visibility: s.visibility || "PUBLIC",
       }));
 
       res.json(markers);
@@ -398,12 +467,13 @@ export function createApp() {
   });
 
   /**
-   * Classement des spots les plus populaires / tendance.
+- Classement des spots les plus populaires / tendance (uniquement ceux accessibles).
    */
-  app.get("/api/spots/trending", async (req, res, next) => {
+  app.get("/api/spots/trending", optionalAuth, async (req, res, next) => {
     try {
       const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 6));
-      const spots = await Spot.find()
+      const accessFilter = await buildSpotAccessFilter(req.auth?.sub);
+      const spots = await Spot.find(accessFilter)
         .sort({ ratingAverage: -1, favoritesCount: -1 })
         .limit(limit);
 
@@ -414,7 +484,7 @@ export function createApp() {
   });
 
   /**
-   * Recommandations personnalisées selon les goûts de l'utilisateur.
+- Recommandations personnalisées selon les goûts de l'utilisateur (avec filtre ACL).
    */
   app.get("/api/spots/recommendations", optionalAuth, async (req, res, next) => {
     try {
@@ -427,12 +497,16 @@ export function createApp() {
         }
       }
 
-      // Si pas de goûts renseignés, prendre les humeurs passées en query param
       if (moods.length === 0 && req.query.moods) {
         moods = String(req.query.moods).split(",");
       }
 
-      const filter = moods.length > 0 ? { moods: { $in: moods } } : {};
+      const accessFilter = await buildSpotAccessFilter(req.auth?.sub);
+      const filter =
+        moods.length > 0
+          ? { $and: [accessFilter, { moods: { $in: moods } }] }
+          : accessFilter;
+
       const spots = await Spot.find(filter)
         .sort({ ratingAverage: -1 })
         .limit(8);
@@ -444,14 +518,29 @@ export function createApp() {
   });
 
   /**
-   * Détails complets d'un spot par son identifiant.
+- Détails complets d'un spot avec vérification stricte d'accès (403 si privé non partagé).
    */
-  app.get("/api/spots/:id", async (req, res, next) => {
+  app.get("/api/spots/:id", optionalAuth, async (req, res, next) => {
     try {
+      if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({ message: "Identifiant de spot invalide" });
+      }
+
       const spot = await Spot.findById(req.params.id);
       if (!spot) {
         return res.status(404).json({ message: "Spot introuvable" });
       }
+
+      const allowed = await canAccessSpot(spot, req.auth?.sub);
+      if (!allowed) {
+        console.warn(
+          `[acl] Accès refusé (403) au spot ${spot.id} pour l'utilisateur ${req.auth?.sub || "anonyme"}`,
+        );
+        return res.status(403).json({
+          message: "Accès refusé : ce spot est privé ou réservé aux amis",
+        });
+      }
+
       res.json(spot.toPublic());
     } catch (error) {
       next(error);
@@ -459,123 +548,76 @@ export function createApp() {
   });
 
   /**
-   * Création d'un nouveau spot par un utilisateur authentifié.
-   * Prend en charge les requêtes multipart (avec upload de photo de couverture) ou JSON standard.
+- Gestion granulaire du partage d'un spot (visibilité + ajout/révocation d'amis).
    */
-  app.post(
-    "/api/spots",
-    auth,
-    upload.single("photo"),
-    async (req, res, next) => {
-      try {
-        const {
-          title,
-          description,
-          category,
-          moods,
-          budget,
-          address,
-          city,
-          postalCode,
-          latitude,
-          longitude,
-          tags,
-        } = req.body || {};
+  app.patch("/api/spots/:id/share", auth, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({ message: "Identifiant de spot invalide" });
+      }
 
-        if (!title || !category) {
-          return res.status(400).json({ message: "Titre et catégorie requis" });
+      const spot = await Spot.findById(req.params.id);
+      if (!spot) {
+        return res.status(404).json({ message: "Spot introuvable" });
+      }
+
+      if (String(spot.createdBy) !== req.auth.sub) {
+        return res.status(403).json({
+          message: "Seul le créateur du spot peut modifier ses paramètres de partage",
+        });
+      }
+
+      const { visibility, sharedWith, addUserId, removeUserId } = req.body || {};
+
+      if (visibility !== undefined) {
+        if (!["PUBLIC", "FRIENDS", "PRIVATE"].includes(visibility)) {
+          return res.status(400).json({ message: "Visibilité invalide" });
         }
+        spot.visibility = visibility;
+      }
 
-        // Formatage des humeurs
-        let parsedMoods = [];
-        if (Array.isArray(moods)) {
-          parsedMoods = moods;
-        } else if (typeof moods === "string") {
-          try {
-            parsedMoods = JSON.parse(moods);
-          } catch {
-            parsedMoods = moods.split(",").map((m) => m.trim()).filter(Boolean);
+      const me = await User.findById(req.auth.sub).select("friends").lean();
+      const myFriendIds = new Set((me?.friends || []).map((id) => String(id)));
+
+      if (Array.isArray(sharedWith)) {
+        for (const uid of sharedWith) {
+          if (!mongoose.isValidObjectId(uid) || !myFriendIds.has(String(uid))) {
+            return res.status(400).json({
+              message: "Vous ne pouvez partager un spot privé qu'avec vos amis",
+            });
           }
         }
+        spot.sharedWith = [...new Set(sharedWith.map(String))];
+      }
 
-        // Formatage des coordonnées
-        const lat = Number(latitude) || 43.7102;
-        const lng = Number(longitude) || 7.262;
-
-        let coverPhoto = "";
-        const photos = [];
-
-        if (req.file) {
-          const photoUrl = `/uploads/${req.file.filename}`;
-          coverPhoto = photoUrl;
-          photos.push({
-            url: photoUrl,
-            storedName: req.file.filename,
-            originalName: req.file.originalname,
-            uploadedBy: req.auth.sub,
+      if (addUserId) {
+        if (!mongoose.isValidObjectId(addUserId) || !myFriendIds.has(String(addUserId))) {
+          return res.status(400).json({
+            message: "Cet utilisateur ne fait pas partie de votre liste d'amis",
           });
-        } else if (req.body?.coverPhoto) {
-          coverPhoto = req.body.coverPhoto;
         }
-
-        const spot = await Spot.create({
-          title,
-          description: description || "",
-          category,
-          moods: parsedMoods,
-          budget: Number(budget) || 1,
-          address: address || "",
-          city: city || "Nice",
-          postalCode: postalCode || "",
-          location: {
-            type: "Point",
-            coordinates: [lng, lat],
-          },
-          coverPhoto,
-          photos,
-          createdBy: req.auth.sub,
-          tags: Array.isArray(tags) ? tags : typeof tags === "string" ? tags.split(",") : [],
-        });
-
-        // Débloquer le badge "explorateur" pour l'utilisateur s'il crée son premier spot
-        const user = await User.findById(req.auth.sub);
-        if (user && user.awardBadge("explorateur")) {
-          await user.save();
-          console.log(`[badge] Badge 'explorateur' attribué à ${user.id}`);
+        if (!spot.sharedWith.some((id) => String(id) === String(addUserId))) {
+          spot.sharedWith.push(addUserId);
         }
-
-        console.log(`[spots] Spot créé avec succès : ${spot.id} (${spot.title})`);
-        res.status(201).json(spot.toPublic());
-      } catch (error) {
-        next(error);
-      }
-    },
-  );
-
-  /**
-   * Modification d'un spot existant (réservé à son créateur).
-   */
-  app.put("/api/spots/:id", auth, async (req, res, next) => {
-    try {
-      const spot = await Spot.findById(req.params.id);
-      if (!spot) {
-        return res.status(404).json({ message: "Spot introuvable" });
+        if (spot.visibility === "PUBLIC") {
+          spot.visibility = "PRIVATE";
+        }
       }
 
-      if (String(spot.createdBy) !== req.auth.sub) {
-        return res.status(403).json({ message: "Action non autorisée sur ce spot" });
+      if (removeUserId) {
+        spot.sharedWith = spot.sharedWith.filter(
+          (id) => String(id) !== String(removeUserId),
+        );
       }
 
-      const { title, description, category, moods, budget, address, city } = req.body || {};
-      if (title) spot.title = title;
-      if (description !== undefined) spot.description = description;
-      if (category) spot.category = category;
-      if (Array.isArray(moods)) spot.moods = moods;
-      if (budget) spot.budget = Number(budget);
-      if (address !== undefined) spot.address = address;
-      if (city !== undefined) spot.city = city;
+      if (spot.visibility === "PUBLIC") {
+        spot.sharedWith = [];
+      }
 
       await spot.save();
+      console.log(
+        `[share] Spot ${spot.id} mis à jour : visibility=${spot.visibility}, sharedWith=${spot.sharedWith.length}`,
+      );
       res.json(spot.toPublic());
     } catch (error) {
       next(error);
@@ -583,30 +625,138 @@ export function createApp() {
   });
 
   /**
-   * Suppression d'un spot (réservé à son créateur).
+- Fil d'activité chronologique des amis (nouveaux spots accessibles, avis, listes).
    */
-  app.delete("/api/spots/:id", auth, async (req, res, next) => {
+  app.get("/api/feed", auth, async (req, res, next) => {
     try {
-      const spot = await Spot.findById(req.params.id);
-      if (!spot) {
-        return res.status(404).json({ message: "Spot introuvable" });
+      const me = await User.findById(req.auth.sub).select("friends").lean();
+      const friendIds = me?.friends || [];
+
+      if (friendIds.length === 0) {
+        return res.json([]);
       }
 
-      if (String(spot.createdBy) !== req.auth.sub) {
-        return res.status(403).json({ message: "Action non autorisée sur ce spot" });
+      const accessFilter = await buildSpotAccessFilter(req.auth.sub);
+
+      const [friendSpots, spotsWithFriendReviews, friendLists] = await Promise.all([
+        Spot.find({
+          createdBy: { $in: friendIds },
+          $or: [
+            { visibility: "PUBLIC" },
+            { visibility: { $exists: false } },
+            { visibility: "FRIENDS" },
+            { visibility: "PRIVATE", sharedWith: req.auth.sub },
+          ],
+        })
+          .populate("createdBy", "name avatar")
+          .sort({ createdAt: -1 })
+          .limit(15)
+          .lean(),
+
+        Spot.find({
+          $and: [accessFilter, { "reviews.user": { $in: friendIds } }],
+        })
+          .select("title category coverPhoto visibility reviews")
+          .populate("reviews.user", "name avatar")
+          .sort({ updatedAt: -1 })
+          .limit(15)
+          .lean(),
+
+        CustomList.find({
+          ownerId: { $in: friendIds },
+          $or: [{ isPublic: true }, { collaborators: req.auth.sub }],
+        })
+          .populate("ownerId", "name avatar")
+          .sort({ createdAt: -1 })
+          .limit(15)
+          .lean(),
+      ]);
+
+      const friendIdSet = new Set(friendIds.map((id) => String(id)));
+      const feedItems = [];
+
+      for (const s of friendSpots) {
+        if (!s.createdBy) continue;
+        feedItems.push({
+          id: `spot-${s._id}`,
+          type: "NEW_SPOT",
+          actor: {
+            id: String(s.createdBy._id),
+            name: s.createdBy.name,
+            avatar: s.createdBy.avatar || "",
+          },
+          target: {
+            id: String(s._id),
+            title: s.title,
+            category: s.category,
+            coverPhoto: s.coverPhoto || "",
+            visibility: s.visibility || "PUBLIC",
+          },
+          summary:
+            s.visibility === "PRIVATE"
+              ? `a partagé un spot privé avec vous : « ${s.title} »`
+              : `a ajouté un nouveau spot : « ${s.title} »`,
+          createdAt: s.createdAt,
+        });
       }
 
-      await Spot.findByIdAndDelete(req.params.id);
-      console.log(`[spots] Spot supprimé : ${req.params.id}`);
-      res.status(204).end();
+      for (const s of spotsWithFriendReviews) {
+        for (const r of s.reviews || []) {
+          const reviewerId = String(r.user?._id || r.user);
+          if (friendIdSet.has(reviewerId)) {
+            feedItems.push({
+              id: `review-${r._id}`,
+              type: "NEW_REVIEW",
+              actor: {
+                id: reviewerId,
+                name: r.user?.name || r.userName,
+                avatar: r.user?.avatar || "",
+              },
+              target: {
+                id: String(s._id),
+                title: s.title,
+                category: s.category,
+                coverPhoto: s.coverPhoto || "",
+                visibility: s.visibility || "PUBLIC",
+              },
+              summary: `a noté « ${s.title} » (${r.rating}/5)`,
+              comment: r.comment || "",
+              createdAt: r.createdAt || s.updatedAt,
+            });
+          }
+        }
+      }
+
+      for (const l of friendLists) {
+        if (!l.ownerId) continue;
+        feedItems.push({
+          id: `list-${l._id}`,
+          type: "NEW_LIST",
+          actor: {
+            id: String(l.ownerId._id),
+            name: l.ownerId.name,
+            avatar: l.ownerId.avatar || "",
+          },
+          target: {
+            id: String(l._id),
+            title: l.name,
+            spotsCount: (l.spots || []).length,
+          },
+          summary: `a créé la liste « ${l.name} »`,
+          createdAt: l.createdAt,
+        });
+      }
+
+      feedItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      res.json(feedItems.slice(0, 30));
     } catch (error) {
       next(error);
     }
   });
 
-  // =========================================================================
+  
   // INTERACTIONS SOCIALES : FAVORIS, AVIS & NOTES, AJOUT DE PHOTOS
-  // =========================================================================
+  
 
   /**
    * Bascule l'état favori d'un spot pour l'utilisateur connecté (toggle).
@@ -783,17 +933,20 @@ export function createApp() {
     },
   );
 
-  // =========================================================================
-  // ROUTES LISTES PERSONNALISÉES
-  // =========================================================================
+
+  // ROUTES LISTES PERSONNALISÉES & COLLABORATIVES
+
 
   /**
-   * Récupère les listes de l'utilisateur connecté.
+- Récupère les listes dont l'utilisateur est propriétaire ou collaborateur.
    */
   app.get("/api/lists", auth, async (req, res, next) => {
     try {
-      const lists = await CustomList.find({ ownerId: req.auth.sub })
+      const lists = await CustomList.find({
+        $or: [{ ownerId: req.auth.sub }, { collaborators: req.auth.sub }],
+      })
         .populate("spots")
+        .populate("collaborators", "name email avatar")
         .sort({ updatedAt: -1 });
 
       res.json(lists.map((l) => l.toPublic()));
@@ -803,23 +956,29 @@ export function createApp() {
   });
 
   /**
-   * Crée une nouvelle liste personnalisée (ex: "Mes spots révisions").
+- Crée une nouvelle liste personnalisée (avec collaborateurs optionnels).
    */
   app.post("/api/lists", auth, async (req, res, next) => {
     try {
-      const { name, description, isPublic } = req.body || {};
+      const { name, description, isPublic, collaborators } = req.body || {};
       if (!name) {
         return res.status(400).json({ message: "Nom de liste requis" });
       }
+
+      const validCollaborators = Array.isArray(collaborators)
+        ? collaborators.filter((id) => mongoose.isValidObjectId(id))
+        : [];
 
       const list = await CustomList.create({
         name,
         description: description || "",
         isPublic: isPublic !== undefined ? Boolean(isPublic) : true,
         ownerId: req.auth.sub,
+        collaborators: [...new Set(validCollaborators)],
         spots: [],
       });
 
+      await list.populate("collaborators", "name email avatar");
       res.status(201).json(list.toPublic());
     } catch (error) {
       next(error);
@@ -827,14 +986,26 @@ export function createApp() {
   });
 
   /**
-   * Détails d'une liste avec les spots qu'elle contient.
+- Détails d'une liste avec vérification de visibilité.
    */
-  app.get("/api/lists/:id", async (req, res, next) => {
+  app.get("/api/lists/:id", optionalAuth, async (req, res, next) => {
     try {
-      const list = await CustomList.findById(req.params.id).populate("spots");
+      if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({ message: "Identifiant de liste invalide" });
+      }
+
+      const list = await CustomList.findById(req.params.id)
+        .populate("spots")
+        .populate("collaborators", "name email avatar");
+
       if (!list) {
         return res.status(404).json({ message: "Liste introuvable" });
       }
+
+      if (!list.isPublic && !canEditList(list, req.auth?.sub)) {
+        return res.status(403).json({ message: "Accès refusé à cette liste privée" });
+      }
+
       res.json(list.toPublic());
     } catch (error) {
       next(error);
@@ -842,24 +1013,123 @@ export function createApp() {
   });
 
   /**
-   * Ajoute un spot à une liste personnalisée.
+- Met à jour les métadonnées et collaborateurs d'une liste (réservé au propriétaire).
    */
-  app.post("/api/lists/:id/spots/:spotId", auth, async (req, res, next) => {
+  app.put("/api/lists/:id", auth, async (req, res, next) => {
     try {
+      if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({ message: "Identifiant de liste invalide" });
+      }
+
       const list = await CustomList.findById(req.params.id);
       if (!list) {
         return res.status(404).json({ message: "Liste introuvable" });
       }
 
       if (String(list.ownerId) !== req.auth.sub) {
+        return res.status(403).json({
+          message: "Seul le propriétaire peut modifier les paramètres de la liste",
+        });
+      }
+
+      const { name, description, isPublic, collaborators } = req.body || {};
+      if (name !== undefined && String(name).trim()) list.name = String(name).trim();
+      if (description !== undefined) list.description = String(description);
+      if (isPublic !== undefined) list.isPublic = Boolean(isPublic);
+
+      if (Array.isArray(collaborators)) {
+        const me = await User.findById(req.auth.sub).select("friends").lean();
+        const myFriendIds = new Set((me?.friends || []).map((id) => String(id)));
+
+        for (const cid of collaborators) {
+          if (!mongoose.isValidObjectId(cid) || !myFriendIds.has(String(cid))) {
+            return res.status(400).json({
+              message: "Les collaborateurs doivent faire partie de votre liste d'amis",
+            });
+          }
+        }
+        list.collaborators = [...new Set(collaborators.map(String))];
+      }
+
+      await list.save();
+      await list.populate(["spots", { path: "collaborators", select: "name email avatar" }]);
+      res.json(list.toPublic());
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  /**
+- Réordonne les spots d'une liste (Drag & Drop) — propriétaire ou collaborateur.
+   */
+  app.put("/api/lists/:id/reorder", auth, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({ message: "Identifiant de liste invalide" });
+      }
+
+      const { spotIds } = req.body || {};
+      if (!Array.isArray(spotIds)) {
+        return res.status(400).json({ message: "Tableau spotIds requis" });
+      }
+
+      const list = await CustomList.findById(req.params.id);
+      if (!list) {
+        return res.status(404).json({ message: "Liste introuvable" });
+      }
+
+      if (!canEditList(list, req.auth.sub)) {
         return res.status(403).json({ message: "Action non autorisée sur cette liste" });
       }
 
-      if (!list.spots.includes(req.params.spotId)) {
+      const currentIds = new Set(list.spots.map((s) => String(s)));
+      if (
+        spotIds.length !== currentIds.size ||
+        spotIds.some((id) => !currentIds.has(String(id)))
+      ) {
+        return res.status(400).json({
+          message: "La liste réordonnée doit contenir exactement les mêmes spots",
+        });
+      }
+
+      list.spots = spotIds;
+      await list.save();
+      await list.populate(["spots", { path: "collaborators", select: "name email avatar" }]);
+
+      console.log(`[lists] Liste ${list.id} réordonnée par ${req.auth.sub}`);
+      res.json(list.toPublic());
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  /**
+- Ajoute un spot à une liste (propriétaire ou collaborateur).
+   */
+  app.post("/api/lists/:id/spots/:spotId", auth, async (req, res, next) => {
+    try {
+      if (
+        !mongoose.isValidObjectId(req.params.id) ||
+        !mongoose.isValidObjectId(req.params.spotId)
+      ) {
+        return res.status(400).json({ message: "Identifiant invalide" });
+      }
+
+      const list = await CustomList.findById(req.params.id);
+      if (!list) {
+        return res.status(404).json({ message: "Liste introuvable" });
+      }
+
+      if (!canEditList(list, req.auth.sub)) {
+        return res.status(403).json({ message: "Action non autorisée sur cette liste" });
+      }
+
+      if (!list.spots.some((s) => String(s) === req.params.spotId)) {
         list.spots.push(req.params.spotId);
         await list.save();
       }
 
+      await list.populate(["spots", { path: "collaborators", select: "name email avatar" }]);
       res.json(list.toPublic());
     } catch (error) {
       next(error);
@@ -867,22 +1137,30 @@ export function createApp() {
   });
 
   /**
-   * Retire un spot d'une liste personnalisée.
+- Retire un spot d'une liste (propriétaire ou collaborateur).
    */
   app.delete("/api/lists/:id/spots/:spotId", auth, async (req, res, next) => {
     try {
+      if (
+        !mongoose.isValidObjectId(req.params.id) ||
+        !mongoose.isValidObjectId(req.params.spotId)
+      ) {
+        return res.status(400).json({ message: "Identifiant invalide" });
+      }
+
       const list = await CustomList.findById(req.params.id);
       if (!list) {
         return res.status(404).json({ message: "Liste introuvable" });
       }
 
-      if (String(list.ownerId) !== req.auth.sub) {
+      if (!canEditList(list, req.auth.sub)) {
         return res.status(403).json({ message: "Action non autorisée sur cette liste" });
       }
 
       list.spots = list.spots.filter((s) => String(s) !== req.params.spotId);
       await list.save();
 
+      await list.populate(["spots", { path: "collaborators", select: "name email avatar" }]);
       res.json(list.toPublic());
     } catch (error) {
       next(error);
@@ -890,10 +1168,14 @@ export function createApp() {
   });
 
   /**
-   * Supprime une liste personnalisée.
+- Supprime une liste personnalisée (réservé au propriétaire).
    */
   app.delete("/api/lists/:id", auth, async (req, res, next) => {
     try {
+      if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({ message: "Identifiant de liste invalide" });
+      }
+
       const list = await CustomList.findById(req.params.id);
       if (!list) {
         return res.status(404).json({ message: "Liste introuvable" });
@@ -910,9 +1192,9 @@ export function createApp() {
     }
   });
 
-  // =========================================================================
+  
   // COMPATIBILITÉ TRACKS (TP BACKEND HISTORIQUE)
-  // =========================================================================
+  
   app.get("/api/tracks", auth, async (req, res, next) => {
     try {
       const page = Math.max(1, Number(req.query.page) || 1);
@@ -1023,8 +1305,311 @@ export function createApp() {
   });
 
   // =========================================================================
-  // GESTIONNAIRE D'ERREURS CENTRAL
+  // ROUTES RÉSEAU SOCIAL : RECHERCHE D'UTILISATEURS & GESTION DES AMIS
   // =========================================================================
+
+  /**
+- Recherche d'utilisateurs par nom ou email avec statut relationnel.
+   */
+  app.get("/api/users/search", auth, async (req, res, next) => {
+    try {
+      const q = String(req.query.q || "").trim();
+      if (!q) {
+        return res.json([]);
+      }
+
+      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escaped, "i");
+
+      const [me, users] = await Promise.all([
+        User.findById(req.auth.sub).select("friends friendRequests").lean(),
+        User.find({
+          _id: { $ne: req.auth.sub },
+          $or: [{ name: regex }, { email: regex }],
+        })
+          .select("name email avatar bio badges friendRequests")
+          .limit(20)
+          .lean(),
+      ]);
+
+      const myFriendSet = new Set((me?.friends || []).map((id) => String(id)));
+      const incomingMap = new Map();
+      for (const r of me?.friendRequests || []) {
+        if (r.status === "PENDING") {
+          incomingMap.set(String(r.from), String(r._id));
+        }
+      }
+
+      const results = users.map((u) => {
+        const uid = String(u._id);
+        let relationStatus = "NONE";
+        let requestId = null;
+
+        if (myFriendSet.has(uid)) {
+          relationStatus = "FRIEND";
+        } else if (incomingMap.has(uid)) {
+          relationStatus = "PENDING_RECEIVED";
+          requestId = incomingMap.get(uid);
+        } else if (
+          (u.friendRequests || []).some(
+            (r) => String(r.from) === req.auth.sub && r.status === "PENDING",
+          )
+        ) {
+          relationStatus = "PENDING_SENT";
+        }
+
+        return {
+          id: uid,
+          name: u.name,
+          email: u.email,
+          avatar: u.avatar || "",
+          bio: u.bio || "",
+          badges: u.badges || ["pionnier"],
+          relationStatus,
+          ...(requestId ? { requestId } : {}),
+        };
+      });
+
+      res.json(results);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  /**
+- Récupère la liste des amis acceptés, les demandes reçues et les demandes envoyées.
+   */
+  app.get("/api/friends", auth, async (req, res, next) => {
+    try {
+      const [me, outgoingUsers] = await Promise.all([
+        User.findById(req.auth.sub)
+          .populate("friends", "name email avatar bio badges")
+          .populate("friendRequests.from", "name email avatar bio badges"),
+        User.find({
+          friendRequests: {
+            $elemMatch: { from: req.auth.sub, status: "PENDING" },
+          },
+        })
+          .select("name email avatar bio badges")
+          .lean(),
+      ]);
+
+      if (!me) {
+        return res.status(404).json({ message: "Utilisateur inconnu" });
+      }
+
+      const friends = (me.friends || []).map((f) => ({
+        id: String(f._id),
+        name: f.name,
+        email: f.email,
+        avatar: f.avatar || "",
+        bio: f.bio || "",
+        badges: f.badges || ["pionnier"],
+      }));
+
+      const incomingRequests = (me.friendRequests || [])
+        .filter((r) => r.status === "PENDING" && r.from)
+        .map((r) => ({
+          id: String(r._id),
+          from: {
+            id: String(r.from._id),
+            name: r.from.name,
+            email: r.from.email,
+            avatar: r.from.avatar || "",
+            badges: r.from.badges || ["pionnier"],
+          },
+          status: r.status,
+          createdAt: r.createdAt,
+        }));
+
+      const outgoingRequests = outgoingUsers.map((u) => ({
+        id: String(u._id),
+        name: u.name,
+        email: u.email,
+        avatar: u.avatar || "",
+      }));
+
+      res.json({ friends, incomingRequests, outgoingRequests });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  /**
+- Envoie une invitation d'ami à un utilisateur cible.
+   */
+  app.post("/api/friends/request/:userId", auth, async (req, res, next) => {
+    try {
+      const targetId = req.params.userId;
+      if (!mongoose.isValidObjectId(targetId)) {
+        return res.status(400).json({ message: "Identifiant utilisateur invalide" });
+      }
+
+      if (targetId === req.auth.sub) {
+        return res.status(400).json({ message: "Impossible de s'ajouter soi-même en ami" });
+      }
+
+      const [me, target] = await Promise.all([
+        User.findById(req.auth.sub),
+        User.findById(targetId),
+      ]);
+
+      if (!me || !target) {
+        return res.status(404).json({ message: "Utilisateur introuvable" });
+      }
+
+      if (me.friends.some((id) => String(id) === targetId)) {
+        return res.status(409).json({ message: "Vous êtes déjà amis" });
+      }
+
+      const alreadySent = target.friendRequests.some(
+        (r) => String(r.from) === req.auth.sub && r.status === "PENDING",
+      );
+      if (alreadySent) {
+        return res.status(409).json({ message: "Invitation déjà envoyée" });
+      }
+
+      const alreadyReceived = me.friendRequests.some(
+        (r) => String(r.from) === targetId && r.status === "PENDING",
+      );
+      if (alreadyReceived) {
+        return res.status(409).json({
+          message: "Cet utilisateur vous a déjà envoyé une invitation",
+        });
+      }
+
+      target.friendRequests.push({ from: req.auth.sub, status: "PENDING" });
+      await target.save();
+
+      console.log(`[friends] Invitation envoyée de ${req.auth.sub} vers ${targetId}`);
+      res.status(201).json({
+        message: "Invitation envoyée",
+        targetUserId: targetId,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  /**
+- Accepte ou refuse une demande d'ami reçue.
+   */
+  app.patch("/api/friends/respond/:requestId", auth, async (req, res, next) => {
+    try {
+      const { requestId } = req.params;
+      if (!mongoose.isValidObjectId(requestId)) {
+        return res.status(400).json({ message: "Identifiant d'invitation invalide" });
+      }
+
+      const rawAction = String(req.body?.action || req.body?.status || "").toUpperCase();
+      if (!["ACCEPT", "ACCEPTED", "REJECT", "REJECTED"].includes(rawAction)) {
+        return res.status(400).json({ message: "Action invalide (ACCEPT ou REJECT requis)" });
+      }
+
+      const isAccepted = rawAction === "ACCEPT" || rawAction === "ACCEPTED";
+      const me = await User.findById(req.auth.sub);
+      if (!me) {
+        return res.status(404).json({ message: "Utilisateur inconnu" });
+      }
+
+      const request = me.friendRequests.id(requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Invitation introuvable" });
+      }
+
+      if (request.status !== "PENDING") {
+        return res.status(400).json({ message: "Cette invitation a déjà été traitée" });
+      }
+
+      request.status = isAccepted ? "ACCEPTED" : "REJECTED";
+
+      if (isAccepted) {
+        const senderId = String(request.from);
+        if (!me.friends.some((id) => String(id) === senderId)) {
+          me.friends.push(request.from);
+        }
+        await User.findByIdAndUpdate(senderId, {
+          $addToSet: { friends: me._id },
+        });
+      }
+
+      await me.save();
+      console.log(`[friends] Invitation ${requestId} -> ${request.status} par ${req.auth.sub}`);
+      res.json({
+        message: isAccepted ? "Invitation acceptée" : "Invitation refusée",
+        status: request.status,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  /**
+- Supprime un ami et purge automatiquement tous les partages privés (sharedWith)
+- ainsi que les accès collaboratifs aux listes dans les deux sens.
+   */
+  app.delete("/api/friends/:friendId", auth, async (req, res, next) => {
+    try {
+      const { friendId } = req.params;
+      if (!mongoose.isValidObjectId(friendId)) {
+        return res.status(400).json({ message: "Identifiant ami invalide" });
+      }
+
+      const myId = req.auth.sub;
+      const friendExists = await User.exists({ _id: friendId });
+      if (!friendExists) {
+        return res.status(404).json({ message: "Utilisateur introuvable" });
+      }
+
+      const [, , spotsPurgeMine, spotsPurgeTheirs] = await Promise.all([
+        User.findByIdAndUpdate(myId, {
+          $pull: {
+            friends: friendId,
+            friendRequests: { from: friendId },
+          },
+        }),
+        User.findByIdAndUpdate(friendId, {
+          $pull: {
+            friends: myId,
+            friendRequests: { from: myId },
+          },
+        }),
+        Spot.updateMany(
+          { createdBy: myId, sharedWith: friendId },
+          { $pull: { sharedWith: friendId } },
+        ),
+        Spot.updateMany(
+          { createdBy: friendId, sharedWith: myId },
+          { $pull: { sharedWith: myId } },
+        ),
+        CustomList.updateMany(
+          { ownerId: myId, collaborators: friendId },
+          { $pull: { collaborators: friendId } },
+        ),
+        CustomList.updateMany(
+          { ownerId: friendId, collaborators: myId },
+          { $pull: { collaborators: myId } },
+        ),
+      ]);
+
+      const revokedSpotsCount =
+        (spotsPurgeMine.modifiedCount || 0) + (spotsPurgeTheirs.modifiedCount || 0);
+
+      console.log(
+        `[friends] Amitié supprimée (${myId} <-> ${friendId}), ${revokedSpotsCount} spot(s) purgés`,
+      );
+      res.json({
+        message: "Ami retiré et partages privés révoqués",
+        revokedSpotsCount,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  
+  // GESTIONNAIRE D'ERREURS CENTRAL
+  
   app.use((error, _req, res, next) => {
     console.error("[error] Erreur traitée :", error);
 
