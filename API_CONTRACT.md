@@ -30,7 +30,7 @@ Sauf pour l'inscription, la connexion et la consultation publique, envoyer le je
 | `GET` | `/spots/trending` | Spots les plus populaires / tendance | Non | `?limit=6` | `200 Spot[]` |
 | `GET` | `/spots/recommendations` | Recommandations selon les goûts / humeurs | Optionnel | `?moods=travail,calme` | `200 Spot[]` |
 | `GET` | `/spots/:id` | Détails complets d'un spot (avis, photos, etc.) | Non | - | `200 Spot` |
-| `POST` | `/spots` | Création d'un spot (débloque le badge *explorateur*) | **JWT** | JSON ou `multipart/form-data` avec champ `photo` | `201 Spot` |
+| `POST` | `/spots` | Création d'un spot (débloque le badge *explorateur*) | **JWT** | JSON ou `multipart/form-data` avec champ `photo`, `visibility?` (`PUBLIC` par défaut, `FRIENDS`, `PRIVATE`) | `201 Spot` (`400` si titre/catégorie manquants ou visibilité invalide) |
 | `PUT` | `/spots/:id` | Modification d'un spot | **JWT (créateur)** | `{ title?, description?, category?, moods?, budget?... }` | `200 Spot` |
 | `DELETE` | `/spots/:id` | Suppression d'un spot | **JWT (créateur)** | - | `204 No Content` |
 
@@ -58,6 +58,22 @@ Sauf pour l'inscription, la connexion et la consultation publique, envoyer le je
 | `POST` | `/lists/:id/spots/:spotId` | Ajouter un spot à la liste | **JWT (créateur)** | - | `200 CustomList` |
 | `DELETE` | `/lists/:id/spots/:spotId` | Retirer un spot de la liste | **JWT (créateur)** | - | `200 CustomList` |
 | `DELETE` | `/lists/:id` | Supprimer la liste | **JWT (créateur)** | - | `204 No Content` |
+
+---
+
+### Réseau Social, Amis, Partage & Fil d'activité
+
+| Méthode | Route | Description | Auth | Requête (Body / Query) | Réponse |
+|---|---|---|---|---|---|
+| `GET` | `/users/search` | Recherche d'utilisateurs avec statut relationnel | **JWT** | `?q=alex` | `200 UserSearchResult[]` |
+| `GET` | `/friends` | Liste des amis, invitations reçues et envoyées | **JWT** | - | `200 { friends, incomingRequests, outgoingRequests }` |
+| `POST` | `/friends/request/:userId` | Envoyer une demande d'ami | **JWT** | - | `201 { message, targetUserId }` |
+| `PATCH` | `/friends/respond/:requestId` | Accepter ou refuser une invitation | **JWT** | `{ action: "ACCEPT" \| "REJECT" }` | `200 { message, status }` |
+| `DELETE` | `/friends/:friendId` | Retirer un ami et purger ses accès partagés | **JWT** | - | `200 { message, revokedSpotsCount }` |
+| `PATCH` | `/spots/:id/share` | Modifier visibilité (`PUBLIC`/`FRIENDS`/`PRIVATE`) ou `sharedWith` | **JWT (créateur)** | `{ visibility?, sharedWith?, addUserId?, removeUserId? }` | `200 Spot` |
+| `GET` | `/feed` | Fil d'activité chronologique des amis | **JWT** | - | `200 FeedItem[]` |
+| `PUT` | `/lists/:id` | Modifier une liste et ses collaborateurs | **JWT (créateur)** | `{ name?, description?, isPublic?, collaborators? }` | `200 CustomList` |
+| `PUT` | `/lists/:id/reorder` | Réordonner les spots d'une liste (Drag & Drop) | **JWT (créateur/collab.)** | `{ spotIds: string[] }` | `200 CustomList` |
 
 ---
 

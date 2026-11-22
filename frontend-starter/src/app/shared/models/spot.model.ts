@@ -115,6 +115,9 @@ export interface Spot {
   coverPhoto: string;
   photos: SpotPhoto[];
   createdBy: string;
+  /** Contrôle d'accès ajouté par la partie B (PATCH /api/spots/:id/share). */
+  visibility?: 'PUBLIC' | 'FRIENDS' | 'PRIVATE';
+  sharedWith?: string[];
   ratingAverage: number;
   ratingCount: number;
   favoritesCount: number;

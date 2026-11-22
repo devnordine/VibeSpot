@@ -1,0 +1,352 @@
+<main class="lists-page">
+  <header class="lists-header">
+    <div>
+      <h1 class="lists-title">Mes Listes & Carnets Collaboratifs</h1>
+      <p class="lists-subtitle">
+        Organisez vos parcours de lieux par thème, invitez des amis à collaborer et réordonnez les étapes par glisser-déposer.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="btn-primary"
+      (click)="toggleCreateForm()"
+    >
+      @if (showCreateForm()) {
+        Fermer le formulaire
+      } @else {
+        + Nouvelle liste
+      }
+    </button>
+  </header>
+
+  @if (showCreateForm()) {
+    <form class="create-list-card" (submit)="onCreateList($event)">
+      <h2 class="form-title">Créer un carnet d'adresses</h2>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label class="field-label" for="list-name">Nom de la liste *</label>
+          <input
+            id="list-name"
+            type="text"
+            class="field-input"
+            placeholder="Ex : Meilleurs cafés pour réviser à Nice"
+            [value]="newName()"
+            (input)="onNewNameInput($event)"
+            required
+          />
+        </div>
+
+        <div class="form-field">
+          <label class="field-label">Visibilité</label>
+          <div class="visibility-toggle">
+            <button
+              type="button"
+              class="toggle-btn"
+              [class.active]="newIsPublic()"
+              (click)="onNewVisibilityChange(true)"
+            >
+              Publique
+            </button>
+            <button
+              type="button"
+              class="toggle-btn"
+              [class.active]="!newIsPublic()"
+              (click)="onNewVisibilityChange(false)"
+            >
+              Privée
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label class="field-label" for="list-desc">Description</label>
+        <textarea
+          id="list-desc"
+          class="field-textarea"
+          rows="2"
+          placeholder="Décrivez l'ambiance ou l'objectif de cette sélection..."
+          [value]="newDescription()"
+          (input)="onNewDescriptionInput($event)"
+        ></textarea>
+      </div>
+
+      @if (socialService.friends().length > 0) {
+        <div class="form-field">
+          <span class="field-label">Amis collaborateurs (optionnel) :</span>
+          <div class="friends-chips">
+            @for (friend of socialService.friends(); track friend.id) {
+              <button
+                type="button"
+                class="friend-chip"
+                [class.selected]="newCollaboratorIds().includes(friend.id)"
+                (click)="toggleNewCollaborator(friend.id)"
+              >
+                {{ friend.name }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="form-actions">
+        <button
+          type="submit"
+          class="btn-primary"
+          [disabled]="!newName().trim() || creating()"
+        >
+          @if (creating()) {
+            Création...
+          } @else {
+            Créer la liste
+          }
+        </button>
+      </div>
+    </form>
+  }
+
+  @if (listService.error()) {
+    <div class="error-banner" role="alert">
+      {{ listService.error() }}
+    </div>
+  }
+
+  <div class="lists-layout">
+    <!-- COLONNE GAUCHE : LISTES -->
+    <aside class="lists-sidebar" aria-label="Vos listes personnalisées">
+      <h2 class="sidebar-title">
+        Mes collections ({{ listService.listsCount() }})
+      </h2>
+
+      @if (listService.loading() && listService.lists().length === 0) {
+        <p class="muted-text">Chargement des listes...</p>
+      } @else {
+        <ul class="collection-items">
+          @for (item of listService.lists(); track item.id) {
+            <li>
+              <button
+                type="button"
+                class="collection-card"
+                [class.selected]="listService.selectedList()?.id === item.id"
+                (click)="selectList(item)"
+              >
+                <div class="collection-card-top">
+                  <span class="collection-name">{{ item.name }}</span>
+                  <span
+                    class="vis-pill"
+                    [class.pill-public]="item.isPublic"
+                    [class.pill-private]="!item.isPublic"
+                  >
+                    {{ item.isPublic ? 'Publique' : 'Privée' }}
+                  </span>
+                </div>
+
+                <div class="collection-card-meta">
+                  <span>{{ item.spotsCount }} lieu(x)</span>
+                  @if (item.collaborators.length > 0) {
+                    <span>• {{ item.collaborators.length }} collaborateur(s)</span>
+                  }
+                </div>
+              </button>
+            </li>
+          } @empty {
+            <li class="empty-sidebar">
+              <p>Aucune liste créée pour le moment.</p>
+            </li>
+          }
+        </ul>
+      }
+    </aside>
+
+    <!-- COLONNE DROITE : DÉTAIL & DRAG-AND-DROP -->
+    <section class="list-detail-panel" aria-label="Détail de la liste sélectionnée">
+      @if (listService.selectedList(); as selected) {
+        <header class="detail-header">
+          <div>
+            <div class="detail-title-row">
+              <h2 class="detail-title">{{ selected.name }}</h2>
+              <span
+                class="vis-pill"
+                [class.pill-public]="selected.isPublic"
+                [class.pill-private]="!selected.isPublic"
+              >
+                {{ selected.isPublic ? 'Publique' : 'Privée' }}
+              </span>
+            </div>
+            @if (selected.description) {
+              <p class="detail-description">{{ selected.description }}</p>
+            }
+          </div>
+
+          @if (isOwnerOfSelectedList()) {
+            <div class="detail-owner-actions">
+              <button
+                type="button"
+                class="btn-secondary"
+                [disabled]="busyAction()"
+                (click)="onToggleSelectedVisibility()"
+              >
+                Passer en {{ selected.isPublic ? 'privée' : 'publique' }}
+              </button>
+              <button
+                type="button"
+                class="btn-danger-outline"
+                [disabled]="busyAction()"
+                (click)="onDeleteList(selected)"
+              >
+                Supprimer
+              </button>
+            </div>
+          }
+        </header>
+
+        <!-- SECTION COLLABORATEURS -->
+        <div class="collaborators-box">
+          <div class="collaborators-header">
+            <h3 class="box-heading">
+              Collaborateurs ({{ selectedListCollaborators().length }})
+            </h3>
+
+            @if (isOwnerOfSelectedList()) {
+              <div class="collab-add-row">
+                <select
+                  class="collab-select"
+                  aria-label="Ajouter un ami collaborateur"
+                  [value]="selectedCollaboratorToAdd()"
+                  [disabled]="busyAction() || availableFriendsToCollaborate().length === 0"
+                  (change)="onSelectCollaborator($event)"
+                >
+                  <option value="">
+                    @if (availableFriendsToCollaborate().length === 0) {
+                      Aucun autre ami disponible
+                    } @else {
+                      Inviter un ami...
+                    }
+                  </option>
+                  @for (friend of availableFriendsToCollaborate(); track friend.id) {
+                    <option [value]="friend.id">{{ friend.name }}</option>
+                  }
+                </select>
+
+                <button
+                  type="button"
+                  class="btn-primary btn-sm"
+                  [disabled]="!selectedCollaboratorToAdd() || busyAction()"
+                  (click)="onAddCollaborator()"
+                >
+                  Ajouter
+                </button>
+              </div>
+            }
+          </div>
+
+          <div class="collaborators-tags">
+            @for (collab of selectedListCollaborators(); track collab.id) {
+              <span class="collab-tag">
+                <span>{{ collab.name }}</span>
+                @if (isOwnerOfSelectedList()) {
+                  <button
+                    type="button"
+                    class="collab-remove-btn"
+                    [attr.aria-label]="'Retirer ' + collab.name"
+                    [disabled]="busyAction()"
+                    (click)="onRemoveCollaborator(collab)"
+                  >
+                    ×
+                  </button>
+                }
+              </span>
+            } @empty {
+              <span class="muted-text">
+                Aucun collaborateur invité sur cette liste.
+              </span>
+            }
+          </div>
+        </div>
+
+        <!-- LISTE DES SPOTS RÉORDONNABLE PAR DRAG & DROP -->
+        <div class="spots-drop-section">
+          <div class="spots-section-header">
+            <h3 class="box-heading">
+              Étapes de la liste ({{ selected.spots.length }})
+            </h3>
+            @if (canEditSelectedList() && selected.spots.length > 1) {
+              <span class="drag-hint">
+                Glissez-déposez les cartes pour réorganiser l'ordre
+              </span>
+            }
+          </div>
+
+          <div
+            cdkDropList
+            class="spots-drop-list"
+            [cdkDropListDisabled]="!canEditSelectedList()"
+            (cdkDropListDropped)="onSpotDrop($event)"
+          >
+            @for (spot of selected.spots; track spot.id; let idx = $index) {
+              <article cdkDrag class="spot-row-card">
+                <div class="spot-row-left">
+                  @if (canEditSelectedList()) {
+                    <span
+                      cdkDragHandle
+                      class="drag-handle"
+                      title="Déplacer ce lieu"
+                      aria-label="Poignée de déplacement"
+                    >
+                      ⋮⋮
+                    </span>
+                  }
+                  <span class="spot-order-badge">{{ idx + 1 }}</span>
+                  <div class="spot-row-info">
+                    <h4 class="spot-row-title">{{ spot.title }}</h4>
+                    <p class="spot-row-meta">
+                      {{ spot.category }} • {{ spot.city }} • {{ getBudgetLabel(spot.budget) }}
+                    </p>
+                  </div>
+                </div>
+
+                @if (canEditSelectedList()) {
+                  <button
+                    type="button"
+                    class="btn-danger-outline btn-sm"
+                    [disabled]="busyAction()"
+                    (click)="onRemoveSpot(spot)"
+                  >
+                    Retirer
+                  </button>
+                }
+              </article>
+            } @empty {
+              <div class="empty-detail">
+                <h3>Cette liste est vide</h3>
+                <p>
+                  Ajoutez des lieux depuis la page d'exploration ou la fiche détaillée d'un spot.
+                </p>
+              </div>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="empty-detail">
+          <h3>Sélectionnez ou créez une liste</h3>
+          <p>
+            Choisissez une collection à gauche pour consulter ses lieux et gérer vos collaborateurs.
+          </p>
+        </div>
+      }
+    </section>
+  </div>
+
+  @if (snackbar(); as toast) {
+    <aside
+      class="lists-snackbar"
+      [class.snackbar-success]="toast.type === 'success'"
+      [class.snackbar-error]="toast.type === 'error'"
+      role="status"
+    >
+      {{ toast.text }}
+    </aside>
+  }
+</main>

@@ -1,4 +1,4 @@
-# Rapport d'usage de l'IA — TP1 et TP2
+# Rapport d'usage de l'IA - TP1 et TP2
 
 ## Informations générales
 - **Étudiant :** BRAHMIA Noureddine (travail individuel)
@@ -8,9 +8,9 @@
 
 ---
 
-## TP1 — Authentification et Profil utilisateur
+## TP1 - Authentification et Profil utilisateur
 
-### Mission 0 — Cartographie et Flux d'authentification
+### Mission 0 - Cartographie et Flux d'authentification
 
 #### 1. Objectif
 Identifier l'architecture applicative sans modifier le code : repérer le composant racine, les routes, l'injection de `HttpClient`, la distinction entre routes publiques et protégées (`API_CONTRACT.md`), et formaliser le schéma du flux de connexion.
@@ -47,7 +47,7 @@ Identifier l'architecture applicative sans modifier le code : repérer le compos
 
 ---
 
-### Mission 1 — Inscription, Connexion et Profil
+### Mission 1 - Inscription, Connexion et Profil
 
 #### 1. Objectif
 Implémenter la gestion de session utilisateur réactive et sécurisée avec Angular Signals, formulaires réactifs avec validation, synchronisation `localStorage`, gestion des retours 401 et mise à jour du profil via `PUT /api/users/me`.
@@ -105,9 +105,9 @@ Implémenter la gestion de session utilisateur réactive et sécurisée avec Ang
 
 ---
 
-## TP2 — Bibliothèque, Upload et Lecture Audiov
+## TP2 - Bibliothèque, Upload et Lecture Audiov
 
-### Mission 2 — Bibliothèque paginée serveur
+### Mission 2 - Bibliothèque paginée serveur
 
 #### 1. Objectif
 Relier la bibliothèque au backend via `GET /api/tracks?page=X&limit=5`, orchestrer l'état avec des Signals (`tracks`, `page`, `pages`, `loading`, `listError`), gérer les boutons de navigation bornés et structurer l'affichage avec `@for`, `@empty` et `@if`.
@@ -146,7 +146,7 @@ Relier la bibliothèque au backend via `GET /api/tracks?page=X&limit=5`, orchest
 
 ---
 
-### Mission 3 — Upload validé et Lecture audio sécurisée
+### Mission 3 - Upload validé et Lecture audio sécurisée
 
 #### 1. Objectif
 Valider les fichiers en amont côté client (< 25 Mo et format audio), gérer les états d'envoi et d'anti-double soumission, et implémenter la lecture audio authentifiée par `Blob` et `ObjectURL` avec révocation mémoire.
@@ -194,9 +194,9 @@ Valider les fichiers en amont côté client (< 25 Mo et format audio), gérer le
 
 ---
 
-## TP3 — Fiabilisation et enrichissement du frontend
+## TP3 - Fiabilisation et enrichissement du frontend
 
-### Mission 5 — Suppression d’une piste et gestion des conflits
+### Mission 5 - Suppression d’une piste et gestion des conflits
 
 #### 1. Objectif
 Ajouter une action de suppression sécurisée sur chaque card de piste via `DELETE /api/tracks/:id`, sécuriser l'opération avec une boîte de confirmation utilisateur, mettre en place un état de suppression pour verrouiller l'interface contre les doubles clics, notifier l'utilisateur par un composant SnackBar éphémère, réajuster dynamiquement la pagination en cas de suppression du dernier élément d'une page, et traiter spécifiquement les cas d'erreur de concurrence `404` (ressource déjà supprimée dans un autre onglet) et `403` (ressource n'appartenant pas à l'utilisateur connecté).
@@ -241,7 +241,7 @@ Ajouter une action de suppression sécurisée sur chaque card de piste via `DELE
 
 ---
 
-### Mission 6 — Événements HTTP et Progression de l’upload
+### Mission 6 - Événements HTTP et Progression de l’upload
 
 #### 1. Objectif
 Faire évoluer le mécanisme de téléversement pour écouter les événements réseau en temps réel via l'API d'Angular (`reportProgress: true` et `observe: 'events'`), calculer dynamiquement le pourcentage d'avancement, piloter les états réactifs (inactif, en cours, succès, échec), et verrouiller les formulaires pendant le transfert pour prévenir toute double soumission.
@@ -283,7 +283,7 @@ Faire évoluer le mécanisme de téléversement pour écouter les événements r
 
 ---
 
-### Mission 7 — Tests unitaires automatisés
+### Mission 7 - Tests unitaires automatisés
 
 #### 1. Objectif
 Mettre en place une suite de tests unitaires frontend automatisés, déterministes et isolés du backend Express et de MongoDB Atlas, en utilisant `TestBed`, `HttpTestingController` et l'environnement moderne Vitest / jsdom d'Angular. Tester la transmission des paramètres de pagination, l'exécution de la suppression HTTP, et l'injection conditionnelle du JWT par l'intercepteur.
@@ -325,3 +325,175 @@ Mettre en place une suite de tests unitaires frontend automatisés, déterminist
 #### 8. Ce que je sais expliquer sans l'agent
 - **Pourquoi les tests HTTP n'ont pas besoin de MongoDB :** Un test unitaire teste la logique interne d'une brique logicielle Angular en isolation stricte. `HttpTestingController` intercepte les requêtes en mémoire avant leur émission réseau et injecte des réponses simulées (`req.flush()`). Cela garantit une suite de tests rapide, reproductible et indépendante de l'état de la base de données.
 - **Différence entre test unitaire et test d'intégration :** Le test unitaire valide une unité de code isolée en simulant l'ensemble de ses dépendances. Le test d'intégration valide la collaboration effective entre plusieurs briques interconnectées (par exemple composant, service, intercepteur et routage) pour s'assurer de la cohérence globale des flux de données.
+
+---
+
+# Phase 2 : Projet en Autonomie (TP4 / TP5 / TP6) - VibeSpot
+
+**Périmètre traité :** Personne B -> *Réseau social, contrôle d'accès granulaire (ACL), partage de lieux et listes collaboratives* (en binôme avec Personne A sur le domaine *Spots & Cartographie*).
+
+## Mission 1.1 - Architecture Backend Social, Partage Sécurisé & Listes Collaboratives
+
+### 1. Objectif
+Faire évoluer le socle backend Express/Mongoose vers l'application **VibeSpot** en implémentant la gestion complète des relations d'amitié, le contrôle d'accès granulaire sur les lieux (`PUBLIC`, `FRIENDS`, `PRIVATE` avec liste `sharedWith`), la révocation d'accès en un clic ou en cascade lors du retrait d'un ami, le fil d'activité social (`/api/feed`) et les listes collaboratives réordonnables.
+
+### 2. Prompt principal
+> « Lis backend/best-practices.md et API_CONTRACT.md. Pour le périmètre Personne B (Social, Partage & Listes) de VibeSpot, analyse et implémente les évolutions backend suivantes en conservant la compatibilité avec la base MongoDB partagée et le middleware JWT (req.auth.sub) :
+> 1. Modèles Mongoose : étendre User.js (friends, friendRequests), Spot.js (visibility, sharedWith) et CustomList.js (collaborators).
+> 2. Routes Amis & Révocation en cascade : recherche d'utilisateurs avec statut relationnel, envoi/acceptation/refus d'invitations, suppression d'ami avec purge automatique de sharedWith et collaborators.
+> 3. Contrôle d'accès (ACL) & Fil d'activité : route PATCH /api/spots/:id/share pour gérer ou stopper le partage, sécurisation des routes GET /api/spots et GET /api/spots/:id (renvoi 403 Forbidden si privé non autorisé), et route GET /api/feed.
+> 4. Extensions Listes Collaboratives : ajout de PUT /api/lists/:id et PUT /api/lists/:id/reorder pour le Drag & Drop. »
+
+### 3. Plan proposé par l'agent
+1. **Évolution des schémas Mongoose :** Ajout de `friends` et `friendRequests` dans `User.js`, de `visibility` (`default: "PUBLIC"`) et `sharedWith` dans `Spot.js`, et de `collaborators` dans `CustomList.js`.
+2. **Helpers de sécurité ACL :** Création de `buildSpotAccessFilter()` pour filtrer les requêtes MongoDB selon l'identité du demandeur (`optionalAuth`) et de `canAccessSpot()` pour bloquer l'accès direct aux spots privés non partagés (`403 Forbidden`).
+3. **Endpoints d'amitié et purge en cascade :** Implémentation de `/api/users/search`, `/api/friends`, `/api/friends/request/:userId`, `/api/friends/respond/:requestId` et `DELETE /api/friends/:friendId` exécutant en parallèle le retrait symétrique d'amitié et la purge de `Spot.sharedWith` et `CustomList.collaborators`.
+4. **Partage granulaire & Fil social :** Ajout de `PATCH /api/spots/:id/share` (réservé au propriétaire `spot.createdBy === req.auth.sub`) et de `GET /api/feed` agrégeant les créations de spots, avis et listes des amis.
+
+### 4. Vérifications réalisées
+- Synchronisation de la branche de travail (`devnoureddine`) avec `main` pour récupérer les modèles de base `Spot.js` et `CustomList.js`.
+- Démarrage conjoint du serveur Express et du client Angular sans erreur de syntaxe ni de connexion à la base MongoDB Atlas partagée.
+- Vérification de la rétrocompatibilité des spots existants grâce à la valeur par défaut `"PUBLIC"` sur le champ `visibility`.
+
+### 5. Erreurs, interrogations et arbitrages techniques
+- **Interrogation sur la base MongoDB partagée :** Comment ne pas casser l'affichage de Personne A sur les spots déjà créés en base ? Arbitrage : inclusion systématique de `{ visibility: { $exists: false } }` dans `buildSpotAccessFilter()`.
+- **Collision d'opérateurs MongoDB `$or` :** La route `GET /api/spots` utilisait déjà `filter.$or` pour la recherche textuelle (`?search=`). Pour éviter que le filtre ACL n'écrase la recherche, les deux conditions ont été encapsulées dans un tableau `filter.$and`.
+- **Harmonisation du payload JWT :** Utilisation stricte de `req.auth.sub` (et non `req.user.id`) et validation systématique des paramètres via `mongoose.isValidObjectId()`.
+
+### 6. Fichiers effectivement modifiés
+- `backend/src/models/User.js`
+- `backend/src/models/Spot.js`
+- `backend/src/models/CustomList.js`
+- `backend/src/app.js`
+- `API_CONTRACT.md`
+
+### 7. Preuve de fonctionnement
+*(À compléter lors des tests DevTools en M1.2 / M3 : capture d'écran de l'onglet Network montrant la révocation d'accès `PATCH /api/spots/:id/share` et le refus `403 Forbidden` côté utilisateur révoqué).*
+
+### 8. Ce que je sais expliquer sans l'agent
+- **Pourquoi le filtrage ACL doit être fait dans la requête MongoDB (`buildSpotAccessFilter`) et pas en JavaScript après coup :** Filtrer en mémoire casserait la pagination serveur (`page`, `limit`, `total`) car `countDocuments()` renverrait un total incluant des spots privés invisibles pour l'utilisateur.
+- **Intégrité référentielle lors de la suppression d'un ami :** Retirer un utilisateur de `User.friends` ne suffit pas ; il faut purger simultanément `Spot.sharedWith` et `CustomList.collaborators` pour éviter qu'un ancien ami conserve un accès résiduel à des contenus privés.
+
+## Mission 1.2 — Modèles TypeScript, Services Angular réactifs (Signals) & Tests Unitaires
+
+### 1. Objectif
+Implémenter la couche d'accès aux données et de gestion d'état réactive côté frontend Angular pour le périmètre Social, Partage et Listes (`SocialService` et `ListService`) en utilisant `inject()`, les `Signals` (`signal`, `computed`, `asReadonly()`), tout en validant chaque flux métier par des tests unitaires isolés sous Vitest (`HttpTestingController`).
+
+### 2. Prompt principal
+> « Lis frontend-starter/best-practices.md et API_CONTRACT.md. Pour le périmètre Personne B (Social, Partage & Listes) de VibeSpot, implémente la couche modèles, services réactifs et tests unitaires côté Angular (syntaxe moderne Angular +18, Signals, inject(), sans modifier routes.ts ni tracks-page) :
+> 1. Modèles TypeScript (`src/app/shared/models/`) : `friend.model.ts` et `custom-list.model.ts`.
+> 2. Services Angular avec Signals (`src/app/shared/services/`) : `SocialService` (amis, invitations, recherche, fil d'activité, partage/révocation sur un spot) et `ListService` (CRUD listes collaboratives, ajout/retrait de spots, réordonnancement).
+> 3. Tests unitaires isolés (Vitest + HttpTestingController, avec assertions standard `toBe(true)` / `toBe(false)`) : `social.service.spec.ts` et `list.service.spec.ts`. »
+
+### 3. Plan proposé par l'agent
+1. **Typage fort des contrats d'interface :** Création de `friend.model.ts` (`FriendUser`, `UserSearchResult`, `FriendRequest`, `FeedItem`, `SpotSharePayload`) et `custom-list.model.ts` (`CustomList`, `ListCollaborator`, `ListSpotSummary`).
+2. **Encapsulation réactive dans les services :** Exposition de signaux en lecture seule (`asReadonly()`) et de valeurs dérivées (`computed()` pour `pendingRequestsCount`, `friendsCount`, `listsCount`) dans `SocialService` et `ListService`.
+3. **Synchronisation optimiste / post-requête :** Mise à jour immédiate des signaux locaux après chaque mutation HTTP (`sendFriendRequest`, `respondToRequest`, `removeFriend`, `reorderSpots`).
+4. **Tests unitaires déterministes :** Écriture de 4 tests dans `social.service.spec.ts` et 3 tests dans `list.service.spec.ts` via `provideHttpClientTesting()`.
+
+### 4. Vérifications réalisées
+- Exécution de `npm test -- --watch=false` : **4 fichiers de tests validés (11/11 tests réussis)** incluant les tests historiques (`track.service.spec.ts`, `auth.interceptor.spec.ts`) et les nouveaux tests sociaux/listes.
+- Exécution de `npm run build` : compilation de production réussie sans erreur ni avertissement de typage TypeScript.
+
+### 5. Erreurs, interrogations et arbitrages techniques
+- **Découplage vis-à-vis de la branche de Personne A :** Comme Personne A définit `spot.model.ts` en parallèle sur sa branche, des types légers dédiés (`SpotVisibility`, `SharedSpotResult`, `ListSpotSummary`) ont été créés dans `friend.model.ts` et `custom-list.model.ts` afin de garantir une compilation immédiate et sans conflit de fusion.
+- **Compatibilité Vitest / Chai :** Utilisation stricte des assertions `toBe(true)` / `toBe(false)` plutôt que `toBeTrue()` / `toBeFalse()` pour éviter toute erreur de propriété Chai lors de l'exécution automatisée.
+
+### 6. Fichiers effectivement créés
+- `frontend-starter/src/app/shared/models/friend.model.ts`
+- `frontend-starter/src/app/shared/models/custom-list.model.ts`
+- `frontend-starter/src/app/shared/services/social.service.ts`
+- `frontend-starter/src/app/shared/services/list.service.ts`
+- `frontend-starter/src/app/shared/services/social.service.spec.ts`
+- `frontend-starter/src/app/shared/services/list.service.spec.ts`
+
+### 7. Preuve de fonctionnement
+- Exécution complète de la suite Vitest (11/11 tests au vert) et du build Angular :
+  ![Tests unitaires services M1.2](livrables/TP4-5-6/Capture_ecran/capture_tests_services_m1.png)
+
+### 8. Ce que je sais expliquer sans l'agent
+- **Pourquoi utiliser `asReadonly()` sur les Signals d'un service :** Exposer directement un `WritableSignal` permettrait à n'importe quel composant de modifier l'état global (`friends.set(...)`) sans passer par les méthodes métier et les appels API du service, cassant la cohérence des données.
+- **Intérêt de `computed()` :** Un signal calculé comme `pendingRequestsCount = computed(() => this._incomingRequests().length)` est mémorisé et ne se recalcule automatiquement que lorsque `_incomingRequests` change, sans abonnement manuel ni fuite mémoire.
+
+## Mission 3.1 — Composant de Révocation d'Accès (`SharePanel`) & Page Réseau Social (`SocialPage`)
+
+### 1. Objectif
+Développer les interfaces Angular standalone du périmètre social sans toucher au routeur commun (`routes.ts`) :
+1. **`SharePanelComponent`** : composant réutilisable destiné à être intégré dans la fiche détaillée d'un lieu, permettant au propriétaire de changer la visibilité (`PUBLIC`, `FRIENDS`, `PRIVATE`), de partager le lieu avec un ami et de **stopper le partage** en un clic.
+2. **`SocialPageComponent`** : page communautaire complète avec onglets réactifs (*Fil d'activité*, *Mes Amis & Invitations*, *Trouver des amis* avec recherche instantanée).
+
+### 2. Prompt principal
+> « Lis frontend-starter/best-practices.md et src/styles.css. Pour le périmètre Personne B (Mission 3.1), implémente deux composants Angular standalone modernes (Angular +18, Signals, inject(), flux @if/@for/@empty, zéro style en ligne) sans modifier routes.ts :
+> 1. Composant réutilisable `SharePanelComponent` : entrées via `input.required()`, événement `shareUpdated = output<SharedSpotResult>()`, contrôle strict du propriétaire, sélecteur de visibilité, ajout d'ami et bouton « Stopper le partage » appelant `SocialService.revokeSpotAccess()`.
+> 2. Page réseau social `SocialPageComponent` : onglets pilotés par Signal (`'feed' | 'friends' | 'discover'`), fil d'activité chronologique, gestion des invitations reçues/envoyées, retrait d'ami avec avertissement de révocation des partages, et recherche d'utilisateurs avec `debounceTime(300)` et `distinctUntilChanged()`. »
+
+### 3. Plan proposé par l'agent
+1. **`SharePanelComponent` :** Utilisation de `input.required()` (`spotId`, `title`, `ownerId`, `visibility`, `sharedWith`) et `computed()` pour vérifier `isOwner()` et croiser `sharedWith()` avec `SocialService.friends()`.
+2. **`SocialPageComponent` :** Conversion du signal `searchQuery` en flux RxJS via `toObservable()` couplé à `debounceTime(300)`, `distinctUntilChanged()`, `switchMap()` et `takeUntilDestroyed()`.
+3. **Tests unitaires des composants :** Écriture de `share-panel.spec.ts` et `social-page.spec.ts` en isolant `AuthService` et `HttpClient`.
+
+### 4. Vérifications réalisées
+- Compilation de production (`npm run build`) : réussie sans erreur.
+- Exécution de la suite de tests (`npm test -- --watch=false`) : **6 fichiers de tests validés (14/14 tests réussis)** incluant les scénarios de rendu conditionnel du propriétaire et de révocation de partage.
+
+### 5. Erreurs, interrogations et arbitrages techniques
+- **Erreur `Cannot read properties of undefined (reading 'getItem')` dans `share-panel.spec.ts` :** Lors de l'instanciation du composant, le vrai `AuthService` tentait d'accéder à `localStorage`, absent dans l'environnement Node/Vitest. Résolution : injection d'un bouchon (*mock*) `AuthService` basé sur des `Signals`.
+- **Erreur `HttpErrorResponse: Failed to parse URL from /api/friends` dans `social-page.spec.ts` :** Les appels HTTP déclenchés dans `ngOnInit()` atteignaient le client `fetch` réel (`undici`) qui rejette les URL relatives. Résolution : ajout de `provideHttpClientTesting()` et interception des requêtes initiales via `httpMock.expectOne()`.
+- **Erreur TypeScript `Cannot find name 'vi'` :** Le fichier `tsconfig.spec.json` du projet déclare les types globaux Jasmine et non Vitest. Résolution : substitution propre de `window.confirm` dans un bloc `try / finally` standard.
+
+### 6. Fichiers effectivement créés
+- `frontend-starter/src/app/components/share-panel/share-panel.ts`
+- `frontend-starter/src/app/components/share-panel/share-panel.html`
+- `frontend-starter/src/app/components/share-panel/share-panel.css`
+- `frontend-starter/src/app/components/share-panel/share-panel.spec.ts`
+- `frontend-starter/src/app/components/social-page/social-page.ts`
+- `frontend-starter/src/app/components/social-page/social-page.html`
+- `frontend-starter/src/app/components/social-page/social-page.css`
+- `frontend-starter/src/app/components/social-page/social-page.spec.ts`
+
+### 7. Preuve de fonctionnement
+*(À compléter après l'intégration des routes en M4 : capture d'écran de `social-page` et de la requête réseau `PATCH /api/spots/:id/share` suivie du blocage `403 Forbidden`).*
+
+![Tests unitaires services M1.3](livrables/TP4-5-6/Capture_ecran/capture_tests_composants_m3.png)
+
+### 8. Ce que je sais expliquer sans l'agent
+- **Intérêt de `toObservable()` + `switchMap()` pour la barre de recherche :** `debounceTime(300)` évite d'envoyer une requête HTTP à chaque frappe clavier, et `switchMap()` annule automatiquement la requête HTTP précédente si l'utilisateur retape un caractère avant la réponse du serveur (évitant les conditions de course).
+- **Découplage par `input.required()` et `output()` :** `SharePanelComponent` ne dépend pas de la page parente ; il reçoit ses données de manière typée et notifie le parent lors d'une modification de partage.
+
+## Mission 3.2 — Listes Collaboratives Drag & Drop (`ListsPage`) & Profil Explorateur (`ProfilePage`)
+
+### 1. Objectif
+Finaliser les interfaces du périmètre social et personnel sans modifier `routes.ts` :
+1. **`ListsPageComponent`** : interface maître-détail permettant de créer des carnets d'adresses publics ou privés, d'inviter des amis collaborateurs et de réordonner les étapes par glisser-déposer (`@angular/cdk/drag-drop`).
+2. **`ProfilePageComponent`** : enrichissement du profil avec édition des informations et humeurs favorites (`tastes`), vitrine des badges débloqués et onglets réactifs (*Mes Spots*, *Partagés avec moi*, *Mes Favoris*, *Recommandés pour vous*).
+
+### 2. Prompt principal
+> « Lis frontend-starter/best-practices.md et src/app/components/profile-page/profile-page.ts. Pour le périmètre Personne B (Mission 3.2), implémente la page des listes collaboratives avec glisser-déposer (@angular/cdk/drag-drop) et enrichis la page de profil utilisateur (Angular +18, Signals, inject(), flux @if/@for/@empty, zéro style en ligne, sans modifier routes.ts) :
+> 1. Page des listes collaboratives `ListsPageComponent` : vue maître-détail, création de liste, gestion des collaborateurs et réordonnancement des spots avec `CdkDropList` / `CdkDrag` (`moveItemInArray` + appel à `ListService.reorderSpots()`).
+> 2. Enrichissement de `ProfilePageComponent` : édition nom/bio/goûts via `PUT /api/users/me`, vitrine des badges débloqués et onglets réactifs (`my-spots`, `shared-with-me`, `favorites`, `recommendations`). »
+
+### 3. Plan proposé par l'agent
+1. **Installation d'Angular CDK :** Ajout de `@angular/cdk` pour exploiter les directives natives `CdkDropList`, `CdkDrag` et `CdkDragHandle`.
+2. **`ListsPageComponent` :** Séparation des droits par `computed()` (`isOwnerOfSelectedList` pour la visibilité, les collaborateurs et la suppression ; `canEditSelectedList` pour le Drag & Drop et l'ajout/retrait de spots).
+3. **`ProfilePageComponent` :** Chargement dynamique des onglets via `HttpClient` et synchronisation du Signal global `AuthService.currentUser` après chaque mise à jour du profil.
+4. **Tests unitaires :** Ajout de `lists-page.spec.ts` (test de `onSpotDrop` émettant `PUT /api/lists/:id/reorder`) et `profile-page.spec.ts` (test des badges et du filtre `?visibility=SHARED_WITH_ME`).
+
+### 4. Vérifications réalisées
+- Installation de `@angular/cdk` et vérification de la compilation de production (`npm run build`).
+- Exécution complète de la suite Vitest (`npm test -- --watch=false`) : **8 fichiers de tests validés (18/18 tests au vert)**.
+
+### 5. Erreurs, interrogations et arbitrages techniques
+- **Synchronisation de l'état utilisateur global :** Plutôt que de dupliquer la logique de mise à jour de session, `ProfilePageComponent` appelle `PUT /api/users/me` puis déclenche `AuthService.profile()` pour actualiser le Signal `currentUser` dans toute l'application.
+- **Sécurité d'édition collaborative :** Désactivation conditionnelle du glisser-déposer via `[cdkDropListDisabled]="!canEditSelectedList()"` afin qu'un visiteur consultant une liste publique ne puisse pas tenter de modifier son ordre.
+
+### 6. Fichiers effectivement créés / modifiés
+- `frontend-starter/package.json` & `frontend-starter/package-lock.json` (ajout `@angular/cdk`)
+- `frontend-starter/src/app/components/lists-page/lists-page.ts`, `.html`, `.css`, `.spec.ts`
+- `frontend-starter/src/app/components/profile-page/profile-page.ts`, `.html`, `.css`, `.spec.ts`
+
+### 7. Preuve de fonctionnement
+- Exécution de la suite complète Vitest (8 fichiers / 18 tests réussis) et build Angular :
+  ![Tests unitaires M3.2](livrables/TP4-5-6/Capture_ecran/capture_tests_composants_m3.2.png)
+
+### 8. Ce que je sais expliquer sans l'agent
+- **Fonctionnement de `moveItemInArray` + persistance serveur :** `moveItemInArray()` réorganise localement une copie du tableau des spots à partir de `event.previousIndex` et `event.currentIndex`, puis `ListService.reorderSpots()` envoie la liste ordonnée des identifiants (`spotIds`) via `PUT /api/lists/:id/reorder` pour garantir que l'ordre soit conservé pour tous les collaborateurs en base MongoDB.

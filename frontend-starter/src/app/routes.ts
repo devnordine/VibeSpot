@@ -24,22 +24,20 @@ export const routes: Routes = [
       import('./components/spot-detail-page/spot-detail-page').then((m) => m.SpotDetailPageComponent),
   },
 
-  // --- Partie B (binôme) : emplacements provisoires -------------------------
+  // --- Partie B : Social, Partage & Listes -----------------------------------
   {
     path: 'social',
     canActivate: [authGuard],
     title: 'Social · VibeSpot',
-    data: { title: 'Réseau d’amis & fil d’activité' },
     loadComponent: () =>
-      import('./components/placeholder-page/placeholder-page').then((m) => m.PlaceholderPageComponent),
+      import('./components/social-page/social-page').then((m) => m.SocialPageComponent),
   },
   {
     path: 'lists',
     canActivate: [authGuard],
     title: 'Mes listes · VibeSpot',
-    data: { title: 'Mes listes & carnets collaboratifs' },
     loadComponent: () =>
-      import('./components/placeholder-page/placeholder-page').then((m) => m.PlaceholderPageComponent),
+      import('./components/lists-page/lists-page').then((m) => m.ListsPageComponent),
   },
   {
     path: 'profile',

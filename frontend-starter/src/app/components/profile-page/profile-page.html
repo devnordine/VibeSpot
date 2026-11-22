@@ -1,21 +1,190 @@
-<section class="card">
-  <h1>Mon profil</h1>
+<main class="profile-container">
+  @if (userDetails(); as user) {
+    <header class="profile-hero">
+      <div class="profile-avatar-lg">
+        {{ user.name.charAt(0).toUpperCase() }}
+      </div>
+      <div class="profile-hero-info">
+        <h1 class="profile-name">{{ user.name }}</h1>
+        <p class="profile-email">{{ user.email }}</p>
+        @if (user.bio) {
+          <p class="profile-bio">{{ user.bio }}</p>
+        }
+      </div>
+    </header>
 
-  @if (auth.currentUser(); as user) {
-    <p>
-      <b>{{ user.name }}</b><br />
-      {{ user.email }}<br />
-      <small>Membre depuis le {{ user.createdAt.slice(0, 10) }}</small>
-    </p>
+    <div class="profile-grid">
+      <!-- FORMULAIRE ÉDITION PROFIL & GOÛTS -->
+      <section class="profile-card" aria-label="Modifier mon profil">
+        <h2 class="card-heading">Informations & Humeurs favorites</h2>
 
-    <form [formGroup]="form" (ngSubmit)="save()">
-      <label>
-        Nouveau nom
-        <input formControlName="name" placeholder="Votre nom" />
-      </label>
-      <button type="submit" [disabled]="form.invalid">Enregistrer</button>
-    </form>
+        <form class="profile-form" (submit)="onSaveProfile($event)">
+          <div class="form-field">
+            <label class="field-label" for="prof-name">Pseudo / Nom affiché</label>
+            <input
+              id="prof-name"
+              type="text"
+              class="field-input"
+              [value]="editName()"
+              (input)="onNameInput($event)"
+              required
+            />
+          </div>
+
+          <div class="form-field">
+            <label class="field-label" for="prof-bio">Biographie</label>
+            <textarea
+              id="prof-bio"
+              class="field-textarea"
+              rows="2"
+              placeholder="Parlez de vos spots préférés (cafés coworking, couchers de soleil...)"
+              [value]="editBio()"
+              (input)="onBioInput($event)"
+            ></textarea>
+          </div>
+
+          <div class="form-field">
+            <span class="field-label">Mes humeurs favorites (pour les recommandations) :</span>
+            <div class="moods-grid">
+              @for (mood of availableMoods; track mood) {
+                <button
+                  type="button"
+                  class="mood-chip"
+                  [class.selected]="editTastes().includes(mood)"
+                  (click)="toggleTaste(mood)"
+                >
+                  #{{ mood }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="btn-primary"
+            [disabled]="!editName().trim() || savingProfile()"
+          >
+            @if (savingProfile()) {
+              Enregistrement...
+            } @else {
+              Enregistrer les modifications
+            }
+          </button>
+
+          @if (profileMessage()) {
+            <p class="alert-success" role="status">{{ profileMessage() }}</p>
+          }
+          @if (profileError()) {
+            <p class="alert-error" role="alert">{{ profileError() }}</p>
+          }
+        </form>
+      </section>
+
+      <!-- VITRINE DES BADGES -->
+      <section class="profile-card" aria-label="Vitrine des badges">
+        <h2 class="card-heading">
+          Badges débloqués ({{ unlockedBadgeCodes().size }} / {{ allBadges.length }})
+        </h2>
+
+        <ul class="badges-grid">
+          @for (badge of allBadges; track badge.code) {
+            <li
+              class="badge-item"
+              [class.unlocked]="unlockedBadgeCodes().has(badge.code)"
+            >
+              <div class="badge-header">
+                <span class="badge-title">{{ badge.label }}</span>
+                <span class="badge-status">
+                  {{ unlockedBadgeCodes().has(badge.code) ? 'Débloqué' : 'Verrouillé' }}
+                </span>
+              </div>
+              <p class="badge-desc">{{ badge.description }}</p>
+            </li>
+          }
+        </ul>
+      </section>
+    </div>
+
+    <!-- ONGLETS : MES SPOTS / PARTAGÉS AVEC MOI / FAVORIS / RECOMMANDATIONS -->
+    <section class="profile-spots-section" aria-label="Mes lieux et découvertes">
+      <nav class="profile-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="profile-tab"
+          [class.active]="activeTab() === 'my-spots'"
+          [attr.aria-selected]="activeTab() === 'my-spots'"
+          (click)="selectTab('my-spots')"
+        >
+          Mes Spots
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="profile-tab"
+          [class.active]="activeTab() === 'shared-with-me'"
+          [attr.aria-selected]="activeTab() === 'shared-with-me'"
+          (click)="selectTab('shared-with-me')"
+        >
+          Partagés avec moi
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="profile-tab"
+          [class.active]="activeTab() === 'favorites'"
+          [attr.aria-selected]="activeTab() === 'favorites'"
+          (click)="selectTab('favorites')"
+        >
+          Mes Favoris
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="profile-tab"
+          [class.active]="activeTab() === 'recommendations'"
+          [attr.aria-selected]="activeTab() === 'recommendations'"
+          (click)="selectTab('recommendations')"
+        >
+          Recommandés pour vous
+        </button>
+      </nav>
+
+      @if (loadingTab()) {
+        <p class="muted-text">Chargement des lieux...</p>
+      } @else {
+        <div class="spots-cards-grid">
+          @for (spot of tabSpots(); track spot.id) {
+            <article class="spot-mini-card">
+              <div class="spot-mini-top">
+                <h3 class="spot-mini-title">{{ spot.title }}</h3>
+                @if (spot.visibility) {
+                  <span class="vis-tag">{{ spot.visibility }}</span>
+                }
+              </div>
+              <p class="spot-mini-meta">
+                {{ spot.category }} • {{ spot.city }} • {{ getBudgetLabel(spot.budget) }}
+              </p>
+              @if (spot.moods && spot.moods.length > 0) {
+                <div class="spot-mini-moods">
+                  @for (m of spot.moods; track m) {
+                    <span class="mini-mood">#{{ m }}</span>
+                  }
+                </div>
+              }
+            </article>
+          } @empty {
+            <div class="empty-spots">
+              <h3>Aucun lieu dans cette section</h3>
+              <p>
+                Explorez la carte ou ajoutez des amis pour voir apparaître des spots ici.
+              </p>
+            </div>
+          }
+        </div>
+      }
+    </section>
   } @else {
-    <p>Chargement du profil en cours...</p>
+    <p class="muted-text">Chargement du profil...</p>
   }
-</section>
+</main>

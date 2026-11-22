@@ -1,0 +1,383 @@
+.social-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.social-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.social-title {
+  margin: 0;
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: var(--text, #0f172a);
+}
+
+.social-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted, #64748b);
+  font-size: 0.95rem;
+}
+
+.social-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid var(--border, #e2e8f0);
+  padding-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.social-tab {
+  border: none;
+  background: transparent;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--muted, #475569);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.social-tab:hover {
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--primary, #4f46e5);
+}
+
+.social-tab.active {
+  background: var(--primary, #4f46e5);
+  color: #ffffff;
+}
+
+.tab-badge {
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+}
+
+.social-banner-error {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 500;
+}
+
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.panel-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.section-heading {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text, #1e293b);
+}
+
+.subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.feed-list,
+.user-cards-grid,
+.outgoing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.feed-card,
+.user-card,
+.outgoing-item {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.feed-card {
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.feed-avatar,
+.user-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--primary, #4f46e5);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.feed-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.feed-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.feed-actor {
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+
+.feed-summary {
+  color: var(--text, #334155);
+}
+
+.feed-type-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+}
+
+.pill-new_spot {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.pill-new_review {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pill-new_list {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.feed-quote {
+  margin: 0.25rem 0;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--primary, #4f46e5);
+  color: var(--muted, #475569);
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.feed-date {
+  font-size: 0.78rem;
+  color: var(--muted, #64748b);
+}
+
+.user-card-main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.user-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+
+.user-email {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted, #64748b);
+}
+
+.user-bio {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text, #334155);
+}
+
+.badges-row {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.mini-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  background: var(--bg, #f1f5f9);
+  color: var(--text, #334155);
+  border: 1px solid var(--border, #cbd5e1);
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger-outline {
+  padding: 0.5rem 0.95rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.btn-primary {
+  border: none;
+  background: var(--primary, #4f46e5);
+  color: #ffffff;
+}
+
+.btn-secondary {
+  border: 1px solid var(--border, #cbd5e1);
+  background: var(--surface, #ffffff);
+  color: var(--text, #1e293b);
+}
+
+.btn-danger-outline {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-danger-outline:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.status-pill {
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.status-friend {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.search-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.search-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text, #1e293b);
+}
+
+.search-input {
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border, #cbd5e1);
+  font-size: 0.95rem;
+  background: var(--surface, #ffffff);
+  color: var(--text, #0f172a);
+}
+
+.empty-card {
+  background: var(--bg, #f8fafc);
+  border: 1px dashed var(--border, #cbd5e1);
+  border-radius: 12px;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  color: var(--muted, #64748b);
+}
+
+.empty-card h3 {
+  margin: 0 0 0.4rem;
+  color: var(--text, #1e293b);
+  font-size: 1.05rem;
+}
+
+.empty-card p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.state-message {
+  color: var(--muted, #64748b);
+  font-size: 0.9rem;
+}
+
+.social-snackbar {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  padding: 0.75rem 1.15rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+  z-index: 1000;
+}
+
+.snackbar-success {
+  background: #166534;
+  color: #ffffff;
+}
+
+.snackbar-error {
+  background: #991b1b;
+  color: #ffffff;
+}
