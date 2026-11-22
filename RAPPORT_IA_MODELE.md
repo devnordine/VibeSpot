@@ -1,4 +1,4 @@
-# Rapport d'usage de l'IA — TP1 et TP2
+# Rapport d'usage de l'IA - TP1 et TP2
 
 ## Informations générales
 - **Étudiant :** BRAHMIA Noureddine (travail individuel)
@@ -8,9 +8,9 @@
 
 ---
 
-## TP1 — Authentification et Profil utilisateur
+## TP1 - Authentification et Profil utilisateur
 
-### Mission 0 — Cartographie et Flux d'authentification
+### Mission 0 - Cartographie et Flux d'authentification
 
 #### 1. Objectif
 Identifier l'architecture applicative sans modifier le code : repérer le composant racine, les routes, l'injection de `HttpClient`, la distinction entre routes publiques et protégées (`API_CONTRACT.md`), et formaliser le schéma du flux de connexion.
@@ -47,7 +47,7 @@ Identifier l'architecture applicative sans modifier le code : repérer le compos
 
 ---
 
-### Mission 1 — Inscription, Connexion et Profil
+### Mission 1 - Inscription, Connexion et Profil
 
 #### 1. Objectif
 Implémenter la gestion de session utilisateur réactive et sécurisée avec Angular Signals, formulaires réactifs avec validation, synchronisation `localStorage`, gestion des retours 401 et mise à jour du profil via `PUT /api/users/me`.
@@ -105,9 +105,9 @@ Implémenter la gestion de session utilisateur réactive et sécurisée avec Ang
 
 ---
 
-## TP2 — Bibliothèque, Upload et Lecture Audiov
+## TP2 - Bibliothèque, Upload et Lecture Audiov
 
-### Mission 2 — Bibliothèque paginée serveur
+### Mission 2 - Bibliothèque paginée serveur
 
 #### 1. Objectif
 Relier la bibliothèque au backend via `GET /api/tracks?page=X&limit=5`, orchestrer l'état avec des Signals (`tracks`, `page`, `pages`, `loading`, `listError`), gérer les boutons de navigation bornés et structurer l'affichage avec `@for`, `@empty` et `@if`.
@@ -146,7 +146,7 @@ Relier la bibliothèque au backend via `GET /api/tracks?page=X&limit=5`, orchest
 
 ---
 
-### Mission 3 — Upload validé et Lecture audio sécurisée
+### Mission 3 - Upload validé et Lecture audio sécurisée
 
 #### 1. Objectif
 Valider les fichiers en amont côté client (< 25 Mo et format audio), gérer les états d'envoi et d'anti-double soumission, et implémenter la lecture audio authentifiée par `Blob` et `ObjectURL` avec révocation mémoire.
@@ -194,9 +194,9 @@ Valider les fichiers en amont côté client (< 25 Mo et format audio), gérer le
 
 ---
 
-## TP3 — Fiabilisation et enrichissement du frontend
+## TP3 - Fiabilisation et enrichissement du frontend
 
-### Mission 5 — Suppression d’une piste et gestion des conflits
+### Mission 5 - Suppression d’une piste et gestion des conflits
 
 #### 1. Objectif
 Ajouter une action de suppression sécurisée sur chaque card de piste via `DELETE /api/tracks/:id`, sécuriser l'opération avec une boîte de confirmation utilisateur, mettre en place un état de suppression pour verrouiller l'interface contre les doubles clics, notifier l'utilisateur par un composant SnackBar éphémère, réajuster dynamiquement la pagination en cas de suppression du dernier élément d'une page, et traiter spécifiquement les cas d'erreur de concurrence `404` (ressource déjà supprimée dans un autre onglet) et `403` (ressource n'appartenant pas à l'utilisateur connecté).
@@ -241,7 +241,7 @@ Ajouter une action de suppression sécurisée sur chaque card de piste via `DELE
 
 ---
 
-### Mission 6 — Événements HTTP et Progression de l’upload
+### Mission 6 - Événements HTTP et Progression de l’upload
 
 #### 1. Objectif
 Faire évoluer le mécanisme de téléversement pour écouter les événements réseau en temps réel via l'API d'Angular (`reportProgress: true` et `observe: 'events'`), calculer dynamiquement le pourcentage d'avancement, piloter les états réactifs (inactif, en cours, succès, échec), et verrouiller les formulaires pendant le transfert pour prévenir toute double soumission.
@@ -283,7 +283,7 @@ Faire évoluer le mécanisme de téléversement pour écouter les événements r
 
 ---
 
-### Mission 7 — Tests unitaires automatisés
+### Mission 7 - Tests unitaires automatisés
 
 #### 1. Objectif
 Mettre en place une suite de tests unitaires frontend automatisés, déterministes et isolés du backend Express et de MongoDB Atlas, en utilisant `TestBed`, `HttpTestingController` et l'environnement moderne Vitest / jsdom d'Angular. Tester la transmission des paramètres de pagination, l'exécution de la suppression HTTP, et l'injection conditionnelle du JWT par l'intercepteur.
@@ -332,7 +332,7 @@ Mettre en place une suite de tests unitaires frontend automatisés, déterminist
 
 **Périmètre traité :** Personne B -> *Réseau social, contrôle d'accès granulaire (ACL), partage de lieux et listes collaboratives* (en binôme avec Personne A sur le domaine *Spots & Cartographie*).
 
-## Mission 1.1 — Architecture Backend Social, Partage Sécurisé & Listes Collaboratives
+## Mission 1.1 - Architecture Backend Social, Partage Sécurisé & Listes Collaboratives
 
 ### 1. Objectif
 Faire évoluer le socle backend Express/Mongoose vers l'application **VibeSpot** en implémentant la gestion complète des relations d'amitié, le contrôle d'accès granulaire sur les lieux (`PUBLIC`, `FRIENDS`, `PRIVATE` avec liste `sharedWith`), la révocation d'accès en un clic ou en cascade lors du retrait d'un ami, le fil d'activité social (`/api/feed`) et les listes collaboratives réordonnables.
@@ -373,3 +373,44 @@ Faire évoluer le socle backend Express/Mongoose vers l'application **VibeSpot**
 ### 8. Ce que je sais expliquer sans l'agent
 - **Pourquoi le filtrage ACL doit être fait dans la requête MongoDB (`buildSpotAccessFilter`) et pas en JavaScript après coup :** Filtrer en mémoire casserait la pagination serveur (`page`, `limit`, `total`) car `countDocuments()` renverrait un total incluant des spots privés invisibles pour l'utilisateur.
 - **Intégrité référentielle lors de la suppression d'un ami :** Retirer un utilisateur de `User.friends` ne suffit pas ; il faut purger simultanément `Spot.sharedWith` et `CustomList.collaborators` pour éviter qu'un ancien ami conserve un accès résiduel à des contenus privés.
+
+## Mission 1.2 — Modèles TypeScript, Services Angular réactifs (Signals) & Tests Unitaires
+
+### 1. Objectif
+Implémenter la couche d'accès aux données et de gestion d'état réactive côté frontend Angular pour le périmètre Social, Partage et Listes (`SocialService` et `ListService`) en utilisant `inject()`, les `Signals` (`signal`, `computed`, `asReadonly()`), tout en validant chaque flux métier par des tests unitaires isolés sous Vitest (`HttpTestingController`).
+
+### 2. Prompt principal
+> « Lis frontend-starter/best-practices.md et API_CONTRACT.md. Pour le périmètre Personne B (Social, Partage & Listes) de VibeSpot, implémente la couche modèles, services réactifs et tests unitaires côté Angular (syntaxe moderne Angular +18, Signals, inject(), sans modifier routes.ts ni tracks-page) :
+> 1. Modèles TypeScript (`src/app/shared/models/`) : `friend.model.ts` et `custom-list.model.ts`.
+> 2. Services Angular avec Signals (`src/app/shared/services/`) : `SocialService` (amis, invitations, recherche, fil d'activité, partage/révocation sur un spot) et `ListService` (CRUD listes collaboratives, ajout/retrait de spots, réordonnancement).
+> 3. Tests unitaires isolés (Vitest + HttpTestingController, avec assertions standard `toBe(true)` / `toBe(false)`) : `social.service.spec.ts` et `list.service.spec.ts`. »
+
+### 3. Plan proposé par l'agent
+1. **Typage fort des contrats d'interface :** Création de `friend.model.ts` (`FriendUser`, `UserSearchResult`, `FriendRequest`, `FeedItem`, `SpotSharePayload`) et `custom-list.model.ts` (`CustomList`, `ListCollaborator`, `ListSpotSummary`).
+2. **Encapsulation réactive dans les services :** Exposition de signaux en lecture seule (`asReadonly()`) et de valeurs dérivées (`computed()` pour `pendingRequestsCount`, `friendsCount`, `listsCount`) dans `SocialService` et `ListService`.
+3. **Synchronisation optimiste / post-requête :** Mise à jour immédiate des signaux locaux après chaque mutation HTTP (`sendFriendRequest`, `respondToRequest`, `removeFriend`, `reorderSpots`).
+4. **Tests unitaires déterministes :** Écriture de 4 tests dans `social.service.spec.ts` et 3 tests dans `list.service.spec.ts` via `provideHttpClientTesting()`.
+
+### 4. Vérifications réalisées
+- Exécution de `npm test -- --watch=false` : **4 fichiers de tests validés (11/11 tests réussis)** incluant les tests historiques (`track.service.spec.ts`, `auth.interceptor.spec.ts`) et les nouveaux tests sociaux/listes.
+- Exécution de `npm run build` : compilation de production réussie sans erreur ni avertissement de typage TypeScript.
+
+### 5. Erreurs, interrogations et arbitrages techniques
+- **Découplage vis-à-vis de la branche de Personne A :** Comme Personne A définit `spot.model.ts` en parallèle sur sa branche, des types légers dédiés (`SpotVisibility`, `SharedSpotResult`, `ListSpotSummary`) ont été créés dans `friend.model.ts` et `custom-list.model.ts` afin de garantir une compilation immédiate et sans conflit de fusion.
+- **Compatibilité Vitest / Chai :** Utilisation stricte des assertions `toBe(true)` / `toBe(false)` plutôt que `toBeTrue()` / `toBeFalse()` pour éviter toute erreur de propriété Chai lors de l'exécution automatisée.
+
+### 6. Fichiers effectivement créés
+- `frontend-starter/src/app/shared/models/friend.model.ts`
+- `frontend-starter/src/app/shared/models/custom-list.model.ts`
+- `frontend-starter/src/app/shared/services/social.service.ts`
+- `frontend-starter/src/app/shared/services/list.service.ts`
+- `frontend-starter/src/app/shared/services/social.service.spec.ts`
+- `frontend-starter/src/app/shared/services/list.service.spec.ts`
+
+### 7. Preuve de fonctionnement
+- Exécution complète de la suite Vitest (11/11 tests au vert) et du build Angular :
+  ![Tests unitaires services M1.2](livrables/TP4-5-6/Capture_ecran/capture_tests_services_m1.png)
+
+### 8. Ce que je sais expliquer sans l'agent
+- **Pourquoi utiliser `asReadonly()` sur les Signals d'un service :** Exposer directement un `WritableSignal` permettrait à n'importe quel composant de modifier l'état global (`friends.set(...)`) sans passer par les méthodes métier et les appels API du service, cassant la cohérence des données.
+- **Intérêt de `computed()` :** Un signal calculé comme `pendingRequestsCount = computed(() => this._incomingRequests().length)` est mémorisé et ne se recalcule automatiquement que lorsque `_incomingRequests` change, sans abonnement manuel ni fuite mémoire.
