@@ -1,0 +1,135 @@
+<section class="share-panel" aria-label="Paramètres de visibilité et partage">
+  <header class="share-panel-header">
+    <div>
+      <h3 class="share-panel-title">Visibilité & Partage</h3>
+      <p class="share-panel-subtitle">
+        Statut actuel :
+        <span class="visibility-badge" [class]="'badge-' + visibility().toLowerCase()">
+          {{ getVisibilityLabel(visibility()) }}
+        </span>
+      </p>
+    </div>
+  </header>
+
+  @if (isOwner()) {
+    <div class="visibility-selector" role="group" aria-label="Choisir la visibilité">
+      <button
+        type="button"
+        class="vis-option"
+        [class.active]="visibility() === 'PUBLIC'"
+        [disabled]="saving()"
+        (click)="onVisibilityChange('PUBLIC')"
+      >
+        Public
+      </button>
+      <button
+        type="button"
+        class="vis-option"
+        [class.active]="visibility() === 'FRIENDS'"
+        [disabled]="saving()"
+        (click)="onVisibilityChange('FRIENDS')"
+      >
+        Amis
+      </button>
+      <button
+        type="button"
+        class="vis-option"
+        [class.active]="visibility() === 'PRIVATE'"
+        [disabled]="saving()"
+        (click)="onVisibilityChange('PRIVATE')"
+      >
+        Privé
+      </button>
+    </div>
+
+    <div class="share-invite-box">
+      <label class="share-label" for="friend-share-select">
+        Partager en privé avec un ami :
+      </label>
+      <div class="share-invite-row">
+        <select
+          id="friend-share-select"
+          class="share-select"
+          [value]="selectedFriendId()"
+          [disabled]="saving() || availableFriendsToAdd().length === 0"
+          (change)="onSelectFriend($event)"
+        >
+          <option value="">
+            @if (availableFriendsToAdd().length === 0) {
+              Aucun autre ami disponible
+            } @else {
+              Sélectionner un ami...
+            }
+          </option>
+          @for (friend of availableFriendsToAdd(); track friend.id) {
+            <option [value]="friend.id">{{ friend.name }} ({{ friend.email }})</option>
+          }
+        </select>
+
+        <button
+          type="button"
+          class="btn-share-add"
+          [disabled]="!selectedFriendId() || saving()"
+          (click)="onAddFriendShare()"
+        >
+          Partager
+        </button>
+      </div>
+    </div>
+
+    @if (visibility() === 'PRIVATE' || sharedFriendsDetails().length > 0) {
+      <div class="shared-users-section">
+        <h4 class="shared-users-title">
+          Amis autorisés ({{ sharedFriendsDetails().length }})
+        </h4>
+
+        <ul class="shared-users-list">
+          @for (friend of sharedFriendsDetails(); track friend.id) {
+            <li class="shared-user-item">
+              <div class="shared-user-info">
+                <span class="user-avatar-placeholder">
+                  {{ friend.name.charAt(0).toUpperCase() }}
+                </span>
+                <div>
+                  <span class="shared-user-name">{{ friend.name }}</span>
+                  @if (friend.email) {
+                    <span class="shared-user-email">{{ friend.email }}</span>
+                  }
+                </div>
+              </div>
+
+              <button
+                type="button"
+                class="btn-revoke"
+                [disabled]="saving()"
+                (click)="onRevokeAccess(friend)"
+              >
+                Stopper le partage
+              </button>
+            </li>
+          } @empty {
+            <li class="shared-empty">
+              Ce lieu est privé et n'est partagé avec aucun ami pour le moment.
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
+    @if (feedbackMessage()) {
+      <p class="share-alert share-alert-success" role="status">
+        {{ feedbackMessage() }}
+      </p>
+    }
+
+    @if (errorMessage()) {
+      <p class="share-alert share-alert-error" role="alert">
+        {{ errorMessage() }}
+      </p>
+    }
+  } @else {
+    <p class="readonly-notice">
+      Les paramètres de partage sont gérés uniquement par le créateur de ce lieu.
+    </p>
+  }
+</section>

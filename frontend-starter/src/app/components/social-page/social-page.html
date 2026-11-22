@@ -1,0 +1,309 @@
+<main class="social-container">
+  <header class="social-header">
+    <div>
+      <h1 class="social-title">Communauté & Amis</h1>
+      <p class="social-subtitle">
+        Suivez les découvertes de vos proches, gérez vos invitations et vos cercles de partage.
+      </p>
+    </div>
+  </header>
+
+  <nav class="social-tabs" role="tablist" aria-label="Sections sociales">
+    <button
+      type="button"
+      role="tab"
+      class="social-tab"
+      [class.active]="activeTab() === 'feed'"
+      [attr.aria-selected]="activeTab() === 'feed'"
+      (click)="selectTab('feed')"
+    >
+      Fil d'activité
+    </button>
+
+    <button
+      type="button"
+      role="tab"
+      class="social-tab"
+      [class.active]="activeTab() === 'friends'"
+      [attr.aria-selected]="activeTab() === 'friends'"
+      (click)="selectTab('friends')"
+    >
+      Mes Amis & Invitations
+      @if (socialService.pendingRequestsCount() > 0) {
+        <span class="tab-badge">{{ socialService.pendingRequestsCount() }}</span>
+      }
+    </button>
+
+    <button
+      type="button"
+      role="tab"
+      class="social-tab"
+      [class.active]="activeTab() === 'discover'"
+      [attr.aria-selected]="activeTab() === 'discover'"
+      (click)="selectTab('discover')"
+    >
+      Trouver des amis
+    </button>
+  </nav>
+
+  @if (socialService.error()) {
+    <div class="social-banner-error" role="alert">
+      {{ socialService.error() }}
+    </div>
+  }
+
+  <!-- ONGLET 1 : FIL D'ACTIVITÉ -->
+  @if (activeTab() === 'feed') {
+    <section class="tab-panel" aria-label="Fil d'activité des amis">
+      <div class="panel-toolbar">
+        <h2 class="section-heading">Activité récente de votre réseau</h2>
+        <button
+          type="button"
+          class="btn-secondary"
+          [disabled]="socialService.loading()"
+          (click)="socialService.loadFeed().subscribe()"
+        >
+          Actualiser
+        </button>
+      </div>
+
+      @if (socialService.loading() && socialService.feed().length === 0) {
+        <p class="state-message">Chargement du fil d'activité...</p>
+      } @else {
+        <ul class="feed-list">
+          @for (item of socialService.feed(); track item.id) {
+            <li class="feed-card">
+              <div class="feed-avatar">
+                {{ item.actor.name.charAt(0).toUpperCase() }}
+              </div>
+              <div class="feed-content">
+                <div class="feed-meta">
+                  <span class="feed-actor">{{ item.actor.name }}</span>
+                  <span class="feed-summary">{{ item.summary }}</span>
+                  <span class="feed-type-pill" [class]="'pill-' + item.type.toLowerCase()">
+                    {{ getFeedBadgeLabel(item) }}
+                  </span>
+                </div>
+
+                @if (item.comment) {
+                  <blockquote class="feed-quote">« {{ item.comment }} »</blockquote>
+                }
+
+                <time class="feed-date" [attr.datetime]="item.createdAt">
+                  {{ item.createdAt | date: 'dd/MM/yyyy à HH:mm' }}
+                </time>
+              </div>
+            </li>
+          } @empty {
+            <li class="empty-card">
+              <h3>Aucune activité récente</h3>
+              <p>
+                Ajoutez des amis dans l'onglet « Trouver des amis » pour voir leurs nouveaux spots, avis et listes ici.
+              </p>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+
+  <!-- ONGLET 2 : MES AMIS & INVITATIONS -->
+  @if (activeTab() === 'friends') {
+    <section class="tab-panel" aria-label="Gestion des amis et invitations">
+      @if (socialService.incomingRequests().length > 0) {
+        <div class="subsection">
+          <h2 class="section-heading">
+            Invitations reçues ({{ socialService.incomingRequests().length }})
+          </h2>
+          <ul class="user-cards-grid">
+            @for (req of socialService.incomingRequests(); track req.id) {
+              <li class="user-card request-card">
+                <div class="user-card-main">
+                  <div class="user-avatar">
+                    {{ req.from.name.charAt(0).toUpperCase() }}
+                  </div>
+                  <div>
+                    <h3 class="user-name">{{ req.from.name }}</h3>
+                    <p class="user-email">{{ req.from.email }}</p>
+                  </div>
+                </div>
+                <div class="card-actions">
+                  <button
+                    type="button"
+                    class="btn-primary"
+                    [disabled]="busyUserId() === req.id"
+                    (click)="onRespondRequest(req, 'ACCEPT')"
+                  >
+                    Accepter
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-danger-outline"
+                    [disabled]="busyUserId() === req.id"
+                    (click)="onRespondRequest(req, 'REJECT')"
+                  >
+                    Refuser
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+
+      @if (socialService.outgoingRequests().length > 0) {
+        <div class="subsection">
+          <h2 class="section-heading">
+            Invitations envoyées en attente ({{ socialService.outgoingRequests().length }})
+          </h2>
+          <ul class="outgoing-list">
+            @for (out of socialService.outgoingRequests(); track out.id) {
+              <li class="outgoing-item">
+                <span>{{ out.name }} ({{ out.email }})</span>
+                <span class="status-pill status-pending">En attente</span>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+
+      <div class="subsection">
+        <h2 class="section-heading">
+          Mes amis ({{ socialService.friendsCount() }})
+        </h2>
+
+        <ul class="user-cards-grid">
+          @for (friend of socialService.friends(); track friend.id) {
+            <li class="user-card">
+              <div class="user-card-main">
+                <div class="user-avatar">
+                  {{ friend.name.charAt(0).toUpperCase() }}
+                </div>
+                <div class="user-details">
+                  <h3 class="user-name">{{ friend.name }}</h3>
+                  <p class="user-email">{{ friend.email }}</p>
+                  @if (friend.badges && friend.badges.length > 0) {
+                    <div class="badges-row">
+                      @for (badge of friend.badges; track badge) {
+                        <span class="mini-badge">{{ badge }}</span>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <div class="card-actions">
+                <button
+                  type="button"
+                  class="btn-danger-outline"
+                  [disabled]="busyUserId() === friend.id"
+                  (click)="onRemoveFriend(friend)"
+                >
+                  Retirer
+                </button>
+              </div>
+            </li>
+          } @empty {
+            <li class="empty-card">
+              <h3>Vous n'avez pas encore d'amis</h3>
+              <p>
+                Recherchez des membres pour partager vos lieux privés et collaborer sur des listes.
+              </p>
+            </li>
+          }
+        </ul>
+      </div>
+    </section>
+  }
+
+  <!-- ONGLET 3 : TROUVER DES AMIS -->
+  @if (activeTab() === 'discover') {
+    <section class="tab-panel" aria-label="Rechercher des utilisateurs">
+      <div class="search-box">
+        <label class="search-label" for="social-user-search">
+          Rechercher par pseudo ou adresse email
+        </label>
+        <input
+          id="social-user-search"
+          type="search"
+          class="search-input"
+          placeholder="Ex : Sarah, alex@example.com..."
+          [value]="searchQuery()"
+          (input)="onSearchInput($event)"
+        />
+      </div>
+
+      @if (socialService.loading()) {
+        <p class="state-message">Recherche en cours...</p>
+      }
+
+      <ul class="user-cards-grid">
+        @for (user of socialService.searchResults(); track user.id) {
+          <li class="user-card">
+            <div class="user-card-main">
+              <div class="user-avatar">
+                {{ user.name.charAt(0).toUpperCase() }}
+              </div>
+              <div class="user-details">
+                <h3 class="user-name">{{ user.name }}</h3>
+                <p class="user-email">{{ user.email }}</p>
+                @if (user.bio) {
+                  <p class="user-bio">{{ user.bio }}</p>
+                }
+              </div>
+            </div>
+
+            <div class="card-actions">
+              @switch (user.relationStatus) {
+                @case ('FRIEND') {
+                  <span class="status-pill status-friend">Déjà ami</span>
+                }
+                @case ('PENDING_SENT') {
+                  <span class="status-pill status-pending">Invitation envoyée</span>
+                }
+                @case ('PENDING_RECEIVED') {
+                  <button
+                    type="button"
+                    class="btn-primary"
+                    [disabled]="busyUserId() === user.id"
+                    (click)="onAcceptFromSearch(user)"
+                  >
+                    Accepter
+                  </button>
+                }
+                @default {
+                  <button
+                    type="button"
+                    class="btn-primary"
+                    [disabled]="busyUserId() === user.id"
+                    (click)="onSendRequest(user)"
+                  >
+                    Ajouter
+                  </button>
+                }
+              }
+            </div>
+          </li>
+        } @empty {
+          @if (searchQuery().trim().length > 0 && !socialService.loading()) {
+            <li class="empty-card">
+              <h3>Aucun utilisateur trouvé</h3>
+              <p>Aucun membre ne correspond à « {{ searchQuery() }} ».</p>
+            </li>
+          }
+        }
+      </ul>
+    </section>
+  }
+
+  @if (snackbar(); as toast) {
+    <aside
+      class="social-snackbar"
+      [class.snackbar-success]="toast.type === 'success'"
+      [class.snackbar-error]="toast.type === 'error'"
+      role="status"
+    >
+      {{ toast.text }}
+    </aside>
+  }
+</main>
