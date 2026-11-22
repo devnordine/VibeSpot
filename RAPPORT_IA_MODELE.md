@@ -414,3 +414,48 @@ Implémenter la couche d'accès aux données et de gestion d'état réactive cô
 ### 8. Ce que je sais expliquer sans l'agent
 - **Pourquoi utiliser `asReadonly()` sur les Signals d'un service :** Exposer directement un `WritableSignal` permettrait à n'importe quel composant de modifier l'état global (`friends.set(...)`) sans passer par les méthodes métier et les appels API du service, cassant la cohérence des données.
 - **Intérêt de `computed()` :** Un signal calculé comme `pendingRequestsCount = computed(() => this._incomingRequests().length)` est mémorisé et ne se recalcule automatiquement que lorsque `_incomingRequests` change, sans abonnement manuel ni fuite mémoire.
+
+## Mission 3.1 — Composant de Révocation d'Accès (`SharePanel`) & Page Réseau Social (`SocialPage`)
+
+### 1. Objectif
+Développer les interfaces Angular standalone du périmètre social sans toucher au routeur commun (`routes.ts`) :
+1. **`SharePanelComponent`** : composant réutilisable destiné à être intégré dans la fiche détaillée d'un lieu, permettant au propriétaire de changer la visibilité (`PUBLIC`, `FRIENDS`, `PRIVATE`), de partager le lieu avec un ami et de **stopper le partage** en un clic.
+2. **`SocialPageComponent`** : page communautaire complète avec onglets réactifs (*Fil d'activité*, *Mes Amis & Invitations*, *Trouver des amis* avec recherche instantanée).
+
+### 2. Prompt principal
+> « Lis frontend-starter/best-practices.md et src/styles.css. Pour le périmètre Personne B (Mission 3.1), implémente deux composants Angular standalone modernes (Angular +18, Signals, inject(), flux @if/@for/@empty, zéro style en ligne) sans modifier routes.ts :
+> 1. Composant réutilisable `SharePanelComponent` : entrées via `input.required()`, événement `shareUpdated = output<SharedSpotResult>()`, contrôle strict du propriétaire, sélecteur de visibilité, ajout d'ami et bouton « Stopper le partage » appelant `SocialService.revokeSpotAccess()`.
+> 2. Page réseau social `SocialPageComponent` : onglets pilotés par Signal (`'feed' | 'friends' | 'discover'`), fil d'activité chronologique, gestion des invitations reçues/envoyées, retrait d'ami avec avertissement de révocation des partages, et recherche d'utilisateurs avec `debounceTime(300)` et `distinctUntilChanged()`. »
+
+### 3. Plan proposé par l'agent
+1. **`SharePanelComponent` :** Utilisation de `input.required()` (`spotId`, `title`, `ownerId`, `visibility`, `sharedWith`) et `computed()` pour vérifier `isOwner()` et croiser `sharedWith()` avec `SocialService.friends()`.
+2. **`SocialPageComponent` :** Conversion du signal `searchQuery` en flux RxJS via `toObservable()` couplé à `debounceTime(300)`, `distinctUntilChanged()`, `switchMap()` et `takeUntilDestroyed()`.
+3. **Tests unitaires des composants :** Écriture de `share-panel.spec.ts` et `social-page.spec.ts` en isolant `AuthService` et `HttpClient`.
+
+### 4. Vérifications réalisées
+- Compilation de production (`npm run build`) : réussie sans erreur.
+- Exécution de la suite de tests (`npm test -- --watch=false`) : **6 fichiers de tests validés (14/14 tests réussis)** incluant les scénarios de rendu conditionnel du propriétaire et de révocation de partage.
+
+### 5. Erreurs, interrogations et arbitrages techniques
+- **Erreur `Cannot read properties of undefined (reading 'getItem')` dans `share-panel.spec.ts` :** Lors de l'instanciation du composant, le vrai `AuthService` tentait d'accéder à `localStorage`, absent dans l'environnement Node/Vitest. Résolution : injection d'un bouchon (*mock*) `AuthService` basé sur des `Signals`.
+- **Erreur `HttpErrorResponse: Failed to parse URL from /api/friends` dans `social-page.spec.ts` :** Les appels HTTP déclenchés dans `ngOnInit()` atteignaient le client `fetch` réel (`undici`) qui rejette les URL relatives. Résolution : ajout de `provideHttpClientTesting()` et interception des requêtes initiales via `httpMock.expectOne()`.
+- **Erreur TypeScript `Cannot find name 'vi'` :** Le fichier `tsconfig.spec.json` du projet déclare les types globaux Jasmine et non Vitest. Résolution : substitution propre de `window.confirm` dans un bloc `try / finally` standard.
+
+### 6. Fichiers effectivement créés
+- `frontend-starter/src/app/components/share-panel/share-panel.ts`
+- `frontend-starter/src/app/components/share-panel/share-panel.html`
+- `frontend-starter/src/app/components/share-panel/share-panel.css`
+- `frontend-starter/src/app/components/share-panel/share-panel.spec.ts`
+- `frontend-starter/src/app/components/social-page/social-page.ts`
+- `frontend-starter/src/app/components/social-page/social-page.html`
+- `frontend-starter/src/app/components/social-page/social-page.css`
+- `frontend-starter/src/app/components/social-page/social-page.spec.ts`
+
+### 7. Preuve de fonctionnement
+*(À compléter après l'intégration des routes en M4 : capture d'écran de `social-page` et de la requête réseau `PATCH /api/spots/:id/share` suivie du blocage `403 Forbidden`).*
+
+![Tests unitaires services M1.3](livrables/TP4-5-6/Capture_ecran/capture_tests_composants_m3.png)
+
+### 8. Ce que je sais expliquer sans l'agent
+- **Intérêt de `toObservable()` + `switchMap()` pour la barre de recherche :** `debounceTime(300)` évite d'envoyer une requête HTTP à chaque frappe clavier, et `switchMap()` annule automatiquement la requête HTTP précédente si l'utilisateur retape un caractère avant la réponse du serveur (évitant les conditions de course).
+- **Découplage par `input.required()` et `output()` :** `SharePanelComponent` ne dépend pas de la page parente ; il reçoit ses données de manière typée et notifie le parent lors d'une modification de partage.
