@@ -459,3 +459,41 @@ Développer les interfaces Angular standalone du périmètre social sans toucher
 ### 8. Ce que je sais expliquer sans l'agent
 - **Intérêt de `toObservable()` + `switchMap()` pour la barre de recherche :** `debounceTime(300)` évite d'envoyer une requête HTTP à chaque frappe clavier, et `switchMap()` annule automatiquement la requête HTTP précédente si l'utilisateur retape un caractère avant la réponse du serveur (évitant les conditions de course).
 - **Découplage par `input.required()` et `output()` :** `SharePanelComponent` ne dépend pas de la page parente ; il reçoit ses données de manière typée et notifie le parent lors d'une modification de partage.
+
+## Mission 3.2 — Listes Collaboratives Drag & Drop (`ListsPage`) & Profil Explorateur (`ProfilePage`)
+
+### 1. Objectif
+Finaliser les interfaces du périmètre social et personnel sans modifier `routes.ts` :
+1. **`ListsPageComponent`** : interface maître-détail permettant de créer des carnets d'adresses publics ou privés, d'inviter des amis collaborateurs et de réordonner les étapes par glisser-déposer (`@angular/cdk/drag-drop`).
+2. **`ProfilePageComponent`** : enrichissement du profil avec édition des informations et humeurs favorites (`tastes`), vitrine des badges débloqués et onglets réactifs (*Mes Spots*, *Partagés avec moi*, *Mes Favoris*, *Recommandés pour vous*).
+
+### 2. Prompt principal
+> « Lis frontend-starter/best-practices.md et src/app/components/profile-page/profile-page.ts. Pour le périmètre Personne B (Mission 3.2), implémente la page des listes collaboratives avec glisser-déposer (@angular/cdk/drag-drop) et enrichis la page de profil utilisateur (Angular +18, Signals, inject(), flux @if/@for/@empty, zéro style en ligne, sans modifier routes.ts) :
+> 1. Page des listes collaboratives `ListsPageComponent` : vue maître-détail, création de liste, gestion des collaborateurs et réordonnancement des spots avec `CdkDropList` / `CdkDrag` (`moveItemInArray` + appel à `ListService.reorderSpots()`).
+> 2. Enrichissement de `ProfilePageComponent` : édition nom/bio/goûts via `PUT /api/users/me`, vitrine des badges débloqués et onglets réactifs (`my-spots`, `shared-with-me`, `favorites`, `recommendations`). »
+
+### 3. Plan proposé par l'agent
+1. **Installation d'Angular CDK :** Ajout de `@angular/cdk` pour exploiter les directives natives `CdkDropList`, `CdkDrag` et `CdkDragHandle`.
+2. **`ListsPageComponent` :** Séparation des droits par `computed()` (`isOwnerOfSelectedList` pour la visibilité, les collaborateurs et la suppression ; `canEditSelectedList` pour le Drag & Drop et l'ajout/retrait de spots).
+3. **`ProfilePageComponent` :** Chargement dynamique des onglets via `HttpClient` et synchronisation du Signal global `AuthService.currentUser` après chaque mise à jour du profil.
+4. **Tests unitaires :** Ajout de `lists-page.spec.ts` (test de `onSpotDrop` émettant `PUT /api/lists/:id/reorder`) et `profile-page.spec.ts` (test des badges et du filtre `?visibility=SHARED_WITH_ME`).
+
+### 4. Vérifications réalisées
+- Installation de `@angular/cdk` et vérification de la compilation de production (`npm run build`).
+- Exécution complète de la suite Vitest (`npm test -- --watch=false`) : **8 fichiers de tests validés (18/18 tests au vert)**.
+
+### 5. Erreurs, interrogations et arbitrages techniques
+- **Synchronisation de l'état utilisateur global :** Plutôt que de dupliquer la logique de mise à jour de session, `ProfilePageComponent` appelle `PUT /api/users/me` puis déclenche `AuthService.profile()` pour actualiser le Signal `currentUser` dans toute l'application.
+- **Sécurité d'édition collaborative :** Désactivation conditionnelle du glisser-déposer via `[cdkDropListDisabled]="!canEditSelectedList()"` afin qu'un visiteur consultant une liste publique ne puisse pas tenter de modifier son ordre.
+
+### 6. Fichiers effectivement créés / modifiés
+- `frontend-starter/package.json` & `frontend-starter/package-lock.json` (ajout `@angular/cdk`)
+- `frontend-starter/src/app/components/lists-page/lists-page.ts`, `.html`, `.css`, `.spec.ts`
+- `frontend-starter/src/app/components/profile-page/profile-page.ts`, `.html`, `.css`, `.spec.ts`
+
+### 7. Preuve de fonctionnement
+- Exécution de la suite complète Vitest (8 fichiers / 18 tests réussis) et build Angular :
+  ![Tests unitaires M3.2](livrables/TP4-5-6/Capture_ecran/capture_tests_composants_m3.2.png)
+
+### 8. Ce que je sais expliquer sans l'agent
+- **Fonctionnement de `moveItemInArray` + persistance serveur :** `moveItemInArray()` réorganise localement une copie du tableau des spots à partir de `event.previousIndex` et `event.currentIndex`, puis `ListService.reorderSpots()` envoie la liste ordonnée des identifiants (`spotIds`) via `PUT /api/lists/:id/reorder` pour garantir que l'ordre soit conservé pour tous les collaborateurs en base MongoDB.
