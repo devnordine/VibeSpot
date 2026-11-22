@@ -325,3 +325,51 @@ Mettre en place une suite de tests unitaires frontend automatisés, déterminist
 #### 8. Ce que je sais expliquer sans l'agent
 - **Pourquoi les tests HTTP n'ont pas besoin de MongoDB :** Un test unitaire teste la logique interne d'une brique logicielle Angular en isolation stricte. `HttpTestingController` intercepte les requêtes en mémoire avant leur émission réseau et injecte des réponses simulées (`req.flush()`). Cela garantit une suite de tests rapide, reproductible et indépendante de l'état de la base de données.
 - **Différence entre test unitaire et test d'intégration :** Le test unitaire valide une unité de code isolée en simulant l'ensemble de ses dépendances. Le test d'intégration valide la collaboration effective entre plusieurs briques interconnectées (par exemple composant, service, intercepteur et routage) pour s'assurer de la cohérence globale des flux de données.
+
+---
+
+# Phase 2 : Projet en Autonomie (TP4 / TP5 / TP6) - VibeSpot
+
+**Périmètre traité :** Personne B -> *Réseau social, contrôle d'accès granulaire (ACL), partage de lieux et listes collaboratives* (en binôme avec Personne A sur le domaine *Spots & Cartographie*).
+
+## Mission 1.1 — Architecture Backend Social, Partage Sécurisé & Listes Collaboratives
+
+### 1. Objectif
+Faire évoluer le socle backend Express/Mongoose vers l'application **VibeSpot** en implémentant la gestion complète des relations d'amitié, le contrôle d'accès granulaire sur les lieux (`PUBLIC`, `FRIENDS`, `PRIVATE` avec liste `sharedWith`), la révocation d'accès en un clic ou en cascade lors du retrait d'un ami, le fil d'activité social (`/api/feed`) et les listes collaboratives réordonnables.
+
+### 2. Prompt principal
+> « Lis backend/best-practices.md et API_CONTRACT.md. Pour le périmètre Personne B (Social, Partage & Listes) de VibeSpot, analyse et implémente les évolutions backend suivantes en conservant la compatibilité avec la base MongoDB partagée et le middleware JWT (req.auth.sub) :
+> 1. Modèles Mongoose : étendre User.js (friends, friendRequests), Spot.js (visibility, sharedWith) et CustomList.js (collaborators).
+> 2. Routes Amis & Révocation en cascade : recherche d'utilisateurs avec statut relationnel, envoi/acceptation/refus d'invitations, suppression d'ami avec purge automatique de sharedWith et collaborators.
+> 3. Contrôle d'accès (ACL) & Fil d'activité : route PATCH /api/spots/:id/share pour gérer ou stopper le partage, sécurisation des routes GET /api/spots et GET /api/spots/:id (renvoi 403 Forbidden si privé non autorisé), et route GET /api/feed.
+> 4. Extensions Listes Collaboratives : ajout de PUT /api/lists/:id et PUT /api/lists/:id/reorder pour le Drag & Drop. »
+
+### 3. Plan proposé par l'agent
+1. **Évolution des schémas Mongoose :** Ajout de `friends` et `friendRequests` dans `User.js`, de `visibility` (`default: "PUBLIC"`) et `sharedWith` dans `Spot.js`, et de `collaborators` dans `CustomList.js`.
+2. **Helpers de sécurité ACL :** Création de `buildSpotAccessFilter()` pour filtrer les requêtes MongoDB selon l'identité du demandeur (`optionalAuth`) et de `canAccessSpot()` pour bloquer l'accès direct aux spots privés non partagés (`403 Forbidden`).
+3. **Endpoints d'amitié et purge en cascade :** Implémentation de `/api/users/search`, `/api/friends`, `/api/friends/request/:userId`, `/api/friends/respond/:requestId` et `DELETE /api/friends/:friendId` exécutant en parallèle le retrait symétrique d'amitié et la purge de `Spot.sharedWith` et `CustomList.collaborators`.
+4. **Partage granulaire & Fil social :** Ajout de `PATCH /api/spots/:id/share` (réservé au propriétaire `spot.createdBy === req.auth.sub`) et de `GET /api/feed` agrégeant les créations de spots, avis et listes des amis.
+
+### 4. Vérifications réalisées
+- Synchronisation de la branche de travail (`devnoureddine`) avec `main` pour récupérer les modèles de base `Spot.js` et `CustomList.js`.
+- Démarrage conjoint du serveur Express et du client Angular sans erreur de syntaxe ni de connexion à la base MongoDB Atlas partagée.
+- Vérification de la rétrocompatibilité des spots existants grâce à la valeur par défaut `"PUBLIC"` sur le champ `visibility`.
+
+### 5. Erreurs, interrogations et arbitrages techniques
+- **Interrogation sur la base MongoDB partagée :** Comment ne pas casser l'affichage de Personne A sur les spots déjà créés en base ? Arbitrage : inclusion systématique de `{ visibility: { $exists: false } }` dans `buildSpotAccessFilter()`.
+- **Collision d'opérateurs MongoDB `$or` :** La route `GET /api/spots` utilisait déjà `filter.$or` pour la recherche textuelle (`?search=`). Pour éviter que le filtre ACL n'écrase la recherche, les deux conditions ont été encapsulées dans un tableau `filter.$and`.
+- **Harmonisation du payload JWT :** Utilisation stricte de `req.auth.sub` (et non `req.user.id`) et validation systématique des paramètres via `mongoose.isValidObjectId()`.
+
+### 6. Fichiers effectivement modifiés
+- `backend/src/models/User.js`
+- `backend/src/models/Spot.js`
+- `backend/src/models/CustomList.js`
+- `backend/src/app.js`
+- `API_CONTRACT.md`
+
+### 7. Preuve de fonctionnement
+*(À compléter lors des tests DevTools en M1.2 / M3 : capture d'écran de l'onglet Network montrant la révocation d'accès `PATCH /api/spots/:id/share` et le refus `403 Forbidden` côté utilisateur révoqué).*
+
+### 8. Ce que je sais expliquer sans l'agent
+- **Pourquoi le filtrage ACL doit être fait dans la requête MongoDB (`buildSpotAccessFilter`) et pas en JavaScript après coup :** Filtrer en mémoire casserait la pagination serveur (`page`, `limit`, `total`) car `countDocuments()` renverrait un total incluant des spots privés invisibles pour l'utilisateur.
+- **Intégrité référentielle lors de la suppression d'un ami :** Retirer un utilisateur de `User.friends` ne suffit pas ; il faut purger simultanément `Spot.sharedWith` et `CustomList.collaborators` pour éviter qu'un ancien ami conserve un accès résiduel à des contenus privés.
