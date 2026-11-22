@@ -172,6 +172,51 @@ Créer un spot depuis la page explore (point sur une mini-carte, jusqu'à 5 phot
 
 ---
 
+## Mission 3 - Fiche détaillée d'un spot (`spot-detail-page`)
+
+> À partir de cette mission, tout est testé avec le vrai backend et la vraie base Atlas. Les spots de démo ont été créés avec ma modale de création (Mission 2), ce qui a aussi testé le vrai envoi de photos.
+
+### 1. Objectif
+Construire la fiche `/spots/:id` : galerie, indicateurs, avis, ajout de photo, ajout à une liste, et y intégrer le panneau de partage de mon binôme.
+
+### 2. Prompts principaux
+> « Fais évoluer `spot-detail-page` (route `/spots/:id`, `id` reçu par `input()`) : en-tête avec titre, catégorie, adresse et badges d'humeur ; galerie photo (grande photo, miniatures cliquables, navigation clavier ← / →, visuel de remplacement sans photo) ; indicateurs : note moyenne en étoiles avec le nombre d'avis, jauge d'affluence (`faible` / `moderee` / `elevee` / `inconnue`), budget, compteur de favoris avec le bouton cœur, et lien « Tracer l'itinéraire ». Ajoute une mini-carte `spot-map` centrée sur le spot. Gère les erreurs 404 (spot introuvable) et 403 (spot privé non partagé) avec un message clair et un lien de retour vers `/explore`. »
+
+> « Dans `spot-detail-page`, ajoute : un formulaire d'avis (note de 1 à 5 obligatoire, commentaire de 500 caractères maximum, humeur ressentie) qui appelle `SpotService.addReview()` et remplace le spot affiché par la réponse ; la liste des avis du plus récent au plus ancien, avec un bouton de suppression visible uniquement sur mes propres avis (confirmation, puis `deleteReview()`) ; un bouton « Ajouter une photo » avec la même validation que la modale de création (`validatePhoto`) et une barre de progression ; un menu « Ajouter à une liste » qui charge mes listes avec `ListService.loadLists()` et appelle `addSpotToList()`. Bloque chaque bouton pendant sa requête et affiche un message de succès ou d'erreur. »
+
+> « Intègre le `SharePanelComponent` de mon binôme dans `spot-detail-page`, affiché seulement si je suis le créateur du spot, en lui passant `spotId`, `title`, `ownerId`, `visibility` et `sharedWith`, et mets à jour le spot affiché quand `shareUpdated` est émis. Écris ensuite les tests Vitest de la fiche, avec un faux `SpotService` et en remplaçant `spot-map` et `share-panel` par des composants vides : affichage du titre et de la galerie, message pour 404 et pour 403, envoi d'un avis avec la bonne note, bouton de suppression présent seulement sur mes avis, et panneau de partage visible uniquement pour le créateur. Lance `npx ng test --watch=false` et `npx ng build`. »
+
+### 3. Plan proposé par l'agent
+1. Galerie avec un `linkedSignal` pour l'index de la photo (revient à 0 quand on change de spot), étoiles et jauge calculées avec des `computed()`.
+2. Réutilisation de ce qui existe : `spot-map` pour la mini-carte, `validatePhoto()` de la modale, `ListService` et `SharePanelComponent` de la partie B.
+3. Après chaque action (avis, photo), on remplace le spot par la réponse de l'API au lieu de tout recharger.
+4. 8 tests avec la carte et le panneau de partage remplacés par des composants vides.
+
+### 4. Vérifications réalisées
+- Sur la vraie base : avis 4★ publié (la note passe à 4/5), photo ajoutée et affichée directement, spot ajouté à une liste, et passage "Public" → "Amis" → "Public" avec le panneau de partage (`PATCH /api/spots/:id/share` → 200).
+- Un id inexistant affiche "Spot introuvable". Le 403 est vérifié par un test (impossible à reproduire avec un seul compte).
+- 47 tests sur 47 au vert (8 nouveaux) et build OK.
+
+### 5. Erreurs, interrogations et arbitrages techniques
+- **Page blanche en ouvrant directement `/spots/:id` :** il manquait `<base href="/">` dans `index.html`. Le navigateur cherchait `styles.css` et `main.js` dans `/spots/`. Ça ne se voyait pas avant car toutes les routes n'avaient qu'un niveau (`/tracks`, `/login`).
+- **Listes de la partie B :** selon la route, le backend renvoie les spots d'une liste complets ou seulement leurs ids. La vérification "déjà dans la liste" gère les deux cas.
+- **Humeur des avis :** c'est un texte libre côté backend, donc on affiche le libellé seulement si l'humeur est connue.
+
+### 6. Fichiers effectivement créés / modifiés
+- `spot-detail-page.{ts,html,css}` (réécrits), `spot-detail-page.spec.ts` (créé)
+- `src/index.html` (`<base href="/">`)
+
+### 7. Preuve de fonctionnement
+![Fiche d'un spot (vraie base)](livrables/TP4/capture_ecran_TP4/capture_M3_fiche_spot.png)
+![Panneau de partage et avis](livrables/TP4/capture_ecran_TP4/capture_M3_avis_partage.png)
+![Tests de la fiche](livrables/TP4/capture_ecran_TP4/capture_M3_tests.png)
+
+### 8. Ce que je sais expliquer sans l'agent
+- `linkedSignal` garde une valeur modifiable (la photo affichée) mais la réinitialise quand sa source change (le spot).
+- Le panneau de partage communique avec la fiche par `input()` / `output()` : la fiche ne sait pas comment il fonctionne, elle met juste à jour sa visibilité quand il émet `shareUpdated`.
+
+---
+
 ## Intégration - Fusion de la partie B dans `devnoa`
 
 ### 1. Objectif

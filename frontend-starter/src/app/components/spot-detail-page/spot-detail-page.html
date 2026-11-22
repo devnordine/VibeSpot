@@ -3,12 +3,228 @@
 
   @if (loading()) {
     <p class="state">Chargement du spot…</p>
-  } @else if (error(); as message) {
-    <p class="state state-error" role="alert">{{ message }}</p>
+  } @else if (errorMessage(); as message) {
+    <div class="error-box" role="alert">
+      <strong>{{ errorStatus() === 403 ? 'Accès refusé' : 'Spot introuvable' }}</strong>
+      <p>{{ message }}</p>
+      <a routerLink="/explore">Voir les autres spots</a>
+    </div>
   } @else if (spot(); as s) {
-    <h1>{{ s.title }}</h1>
-    <p class="meta">{{ s.category }} · {{ s.address }} {{ s.city }}</p>
-    <p>{{ s.description }}</p>
-    <p class="meta">★ {{ s.ratingAverage }} ({{ s.ratingCount }} avis) · Affluence : {{ s.affluence }}</p>
+    <header class="head">
+      <div>
+        <h1>{{ s.title }}</h1>
+        <p class="meta">{{ categoryLabels[s.category] }} · {{ s.address }}{{ s.address ? ', ' : '' }}{{ s.city }}</p>
+        <div class="moods">
+          @for (mood of knownMoods(); track mood) {
+            <span class="mood mood-{{ mood }}">{{ moodLabels[mood] }}</span>
+          }
+        </div>
+      </div>
+      <div class="head-actions">
+        <button
+          type="button"
+          class="fav"
+          [class.on]="favorited()"
+          [disabled]="favoritePending()"
+          [attr.aria-pressed]="favorited()"
+          (click)="toggleFavorite()"
+        >
+          {{ favorited() ? '♥' : '♡' }} {{ s.favoritesCount }}
+        </button>
+        <a class="route" [href]="routeUrl()" target="_blank" rel="noopener">Tracer l’itinéraire</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Galerie -->
+      <div class="gallery" tabindex="0" aria-label="Galerie photo (flèches gauche et droite)" (keydown)="onGalleryKey($event)">
+        <div class="main-photo">
+          @if (activePhoto(); as url) {
+            <img [src]="url" [alt]="s.title" />
+          } @else {
+            <span class="no-photo">Pas encore de photo</span>
+          }
+        </div>
+        @if (photos().length > 1) {
+          <ul class="thumbs">
+            @for (url of photos(); track url; let i = $index) {
+              <li>
+                <button type="button" [class.active]="i === activeIndex()" [attr.aria-label]="'Photo ' + (i + 1)" (click)="selectPhoto(i)">
+                  <img [src]="url" alt="" />
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <!-- Indicateurs -->
+      <aside class="stats">
+        <div class="stat">
+          <span class="label">Note</span>
+          <span class="stars" [attr.aria-label]="s.ratingAverage + ' sur 5'">
+            @for (star of stars(); track $index) {
+              <span class="star {{ star }}">★</span>
+            }
+          </span>
+          <small>{{ s.ratingAverage }} / 5 · {{ s.ratingCount }} avis</small>
+        </div>
+
+        <div class="stat">
+          <span class="label">Affluence</span>
+          <div class="gauge" role="meter" aria-valuemin="0" aria-valuemax="3" [attr.aria-valuenow]="affluenceLevel()">
+            @for (level of [1, 2, 3]; track level) {
+              <span class="bar" [class.filled]="level <= affluenceLevel()" [class.level-3]="affluenceLevel() === 3"></span>
+            }
+          </div>
+          <small>{{ affluenceLabels[s.affluence] }}</small>
+        </div>
+
+        <div class="stat">
+          <span class="label">Budget</span>
+          <span class="budget">{{ budgetLabel() }}</span>
+        </div>
+
+        <div class="stat">
+          <span class="label">Score d’ambiance</span>
+          <span class="score">{{ s.ambianceScore ? s.ambianceScore + ' / 100' : '—' }}</span>
+        </div>
+
+        <div class="mini-map">
+          <app-spot-map [markers]="marker()" />
+        </div>
+      </aside>
+    </div>
+
+    @if (s.description) {
+      <p class="description">{{ s.description }}</p>
+    }
+
+    <!-- Actions : photo et listes -->
+    <div class="actions">
+      <label class="action-btn" [class.disabled]="photoUploading()">
+        📷 {{ photoUploading() ? 'Envoi… ' + photoProgress() + ' %' : 'Ajouter une photo' }}
+        <input
+          #photoInput
+          type="file"
+          class="sr-only"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          [disabled]="photoUploading()"
+          (change)="onPhotoSelected(photoInput.files); photoInput.value = ''"
+        />
+      </label>
+      @if (photoUploading()) {
+        <progress max="100" [value]="photoProgress()"></progress>
+      }
+
+      <div class="lists-menu">
+        <button type="button" class="action-btn" [attr.aria-expanded]="listsOpen()" (click)="toggleLists()">
+          📋 Ajouter à une liste
+        </button>
+        @if (listsOpen()) {
+          <ul class="lists-dropdown">
+            @for (list of listService.lists(); track list.id) {
+              <li>
+                <button type="button" [disabled]="isInList(list) || addingToList() === list.id" (click)="addToList(list)">
+                  {{ list.name }}
+                  @if (isInList(list)) {
+                    <small>déjà dedans</small>
+                  }
+                </button>
+              </li>
+            } @empty {
+              <li class="empty">
+                @if (listService.loading()) {
+                  Chargement…
+                } @else {
+                  Aucune liste. <a routerLink="/lists">Créer une liste</a>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </div>
+
+    @if (notice(); as n) {
+      <p class="notice notice-{{ n.kind }}" role="status">{{ n.text }}</p>
+    }
+
+    <!-- Partage (composant de la partie B), seulement pour le créateur -->
+    @if (isOwner()) {
+      <app-share-panel
+        [spotId]="s.id"
+        [title]="s.title"
+        [ownerId]="s.createdBy"
+        [visibility]="s.visibility ?? 'PUBLIC'"
+        [sharedWith]="s.sharedWith ?? []"
+        (shareUpdated)="onShareUpdated($event)"
+      />
+    }
+
+    <!-- Avis -->
+    <section class="reviews" aria-labelledby="reviews-title">
+      <h2 id="reviews-title">Avis ({{ s.ratingCount }})</h2>
+
+      <form class="review-form" [formGroup]="reviewForm" (ngSubmit)="submitReview()">
+        <div class="rating-input" role="radiogroup" aria-label="Votre note">
+          @for (value of [1, 2, 3, 4, 5]; track value) {
+            <button
+              type="button"
+              class="star-btn"
+              [class.on]="value <= reviewForm.controls.rating.value"
+              [attr.aria-label]="value + ' étoile(s)'"
+              [attr.aria-checked]="reviewForm.controls.rating.value === value"
+              role="radio"
+              (click)="setRating(value)"
+            >
+              ★
+            </button>
+          }
+        </div>
+        <textarea formControlName="comment" rows="3" maxlength="500" placeholder="Votre avis (optionnel)" aria-label="Commentaire"></textarea>
+        <div class="review-foot">
+          <select formControlName="moodExperienced" aria-label="Humeur ressentie">
+            <option value="">Humeur ressentie (optionnel)</option>
+            @for (mood of moods; track mood) {
+              <option [value]="mood">{{ moodLabels[mood] }}</option>
+            }
+          </select>
+          <button type="submit" [disabled]="reviewForm.invalid || reviewSubmitting()">
+            {{ reviewSubmitting() ? 'Envoi…' : 'Publier mon avis' }}
+          </button>
+        </div>
+      </form>
+
+      <ul class="review-list">
+        @for (review of sortedReviews(); track review.id) {
+          <li class="review">
+            <div class="review-head">
+              <strong>{{ review.userName }}</strong>
+              <span class="review-stars">{{ '★'.repeat(review.rating) }}<span class="dim">{{ '★'.repeat(5 - review.rating) }}</span></span>
+              @if (review.moodExperienced) {
+                <span class="review-mood">{{ moodLabel(review.moodExperienced) }}</span>
+              }
+              <small>{{ review.createdAt.slice(0, 10) }}</small>
+              @if (review.userId === currentUserId()) {
+                <button
+                  type="button"
+                  class="delete"
+                  [disabled]="deletingReviewId() === review.id"
+                  (click)="deleteReview(review)"
+                >
+                  {{ deletingReviewId() === review.id ? '…' : 'Supprimer' }}
+                </button>
+              }
+            </div>
+            @if (review.comment) {
+              <p>{{ review.comment }}</p>
+            }
+          </li>
+        } @empty {
+          <li class="state">Aucun avis pour l'instant, soyez le premier !</li>
+        }
+      </ul>
+    </section>
   }
 </section>
