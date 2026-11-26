@@ -1,4 +1,4 @@
-# VibeSpot — Découverte et partage collaboratif de lieux par ambiance
+# VibeSpot - Découverte et partage collaboratif de lieux par ambiance
 
 **VibeSpot** est une application web full-stack (Angular 22 · Node.js / Express · MongoDB Atlas) permettant de découvrir, cartographier, noter et partager des lieux selon son humeur (*travail, calme, festif, gourmand, sportif, photo, romantique, nature*), tout en gérant ses cercles d'amis, des accès privés sécurisés (ACL) et des listes collaboratives réordonnables par glisser-déposer.
 
@@ -70,12 +70,12 @@ Ouvrir `http://localhost:4200` (le proxy `proxy.conf.json` redirige automatiquem
 
 ## Tests et build de production
 
-- **Tests unitaires Frontend (Vitest — 76 tests / 16 fichiers) :**
+- **Tests unitaires Frontend (Vitest - 76 tests / 16 fichiers) :**
   ```bash
   cd frontend-starter
   npm test -- --watch=false
   ```
-- **Tests d'intégration Backend ACL (`node:test` — 2 tests) :**
+- **Tests d'intégration Backend ACL (`node:test` - 2 tests) :**
   ```bash
   node --test backend/test/social-acl.test.js
   ```
@@ -105,8 +105,8 @@ VibeSpot/
 ├── livrables/                  # Captures réseau DevTools, schémas et bilans des TP1 à TP6
 ├── API_CONTRACT.md             # Contrat d'interface REST complet (endpoints, requêtes, réponses, erreurs)
 ├── REPORT.md                   # Rapport technique global du projet (architecture, sécurité, tests, bilan)
-├── RAPPORT_IA_TP456.md         # Journal d'usage de l'IA — Partie A
-└── RAPPORT_IA_MODELE.md        # Journal d'usage de l'IA — TP1 à TP3 et Partie B (Missions 1 à 4)
+├── RAPPORT_IA_TP456.md         # Journal d'usage de l'IA - Partie A
+└── RAPPORT_IA_MODELE.md        # Journal d'usage de l'IA - TP1 à TP3 et Partie B (Missions 1 à 4)
 ```
 
 ---
