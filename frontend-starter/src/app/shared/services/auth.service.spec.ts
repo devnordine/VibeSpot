@@ -4,6 +4,28 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AuthService } from './auth.service';
 
+const memoryStore = new Map<string, string>();
+const mockLocalStorage: Storage = {
+  get length() {
+    return memoryStore.size;
+  },
+  clear: () => memoryStore.clear(),
+  getItem: (key: string) => memoryStore.get(key) ?? null,
+  key: (index: number) => Array.from(memoryStore.keys())[index] ?? null,
+  removeItem: (key: string) => {
+    memoryStore.delete(key);
+  },
+  setItem: (key: string, value: string) => {
+    memoryStore.set(key, String(value));
+  },
+};
+
+Object.defineProperty(globalThis, 'localStorage', {
+  value: mockLocalStorage,
+  configurable: true,
+  writable: true,
+});
+
 describe('AuthService', () => {
   let httpMock: HttpTestingController;
 
@@ -17,7 +39,7 @@ describe('AuthService', () => {
 
   beforeEach(() => TestBed.resetTestingModule());
   afterEach(() => {
-    httpMock.verify();
+    httpMock?.verify();
     localStorage.clear();
   });
 
