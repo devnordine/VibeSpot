@@ -1,4 +1,4 @@
-# Rapport d'usage de l'IA - TP1 et TP2
+# Rapport d'usage de l'IA - TP1 à TP6 (Guitar Practice Cloud & VibeSpot)
 
 ## Informations générales
 - **Étudiant :** BRAHMIA Noureddine (travail individuel)
@@ -105,7 +105,7 @@ Implémenter la gestion de session utilisateur réactive et sécurisée avec Ang
 
 ---
 
-## TP2 - Bibliothèque, Upload et Lecture Audiov
+## TP2 - Bibliothèque, Upload et Lecture Audio
 
 ### Mission 2 - Bibliothèque paginée serveur
 
@@ -368,7 +368,8 @@ Faire évoluer le socle backend Express/Mongoose vers l'application **VibeSpot**
 - `API_CONTRACT.md`
 
 ### 7. Preuve de fonctionnement
-*(À compléter lors des tests DevTools en M1.2 / M3 : capture d'écran de l'onglet Network montrant la révocation d'accès `PATCH /api/spots/:id/share` et le refus `403 Forbidden` côté utilisateur révoqué).*
+- Contrôle d'accès ACL en action : révocation du partage d'un lieu privé (`PATCH /api/spots/:id/share`) et blocage immédiat (`403 Forbidden`) côté utilisateur révoqué :
+  ![Révocation d'accès ACL et refus 403 Forbidden](livrables/TP4-5-6/Capture_ecran/capture_revocation_403.png)
 
 ### 8. Ce que je sais expliquer sans l'agent
 - **Pourquoi le filtrage ACL doit être fait dans la requête MongoDB (`buildSpotAccessFilter`) et pas en JavaScript après coup :** Filtrer en mémoire casserait la pagination serveur (`page`, `limit`, `total`) car `countDocuments()` renverrait un total incluant des spots privés invisibles pour l'utilisateur.
@@ -452,9 +453,10 @@ Développer les interfaces Angular standalone du périmètre social sans toucher
 - `frontend-starter/src/app/components/social-page/social-page.spec.ts`
 
 ### 7. Preuve de fonctionnement
-*(À compléter après l'intégration des routes en M4 : capture d'écran de `social-page` et de la requête réseau `PATCH /api/spots/:id/share` suivie du blocage `403 Forbidden`).*
-
-![Tests unitaires services M1.3](livrables/TP4-5-6/Capture_ecran/capture_tests_composants_m3.png)
+- Exécution des tests unitaires des composants `SharePanelComponent` et `SocialPageComponent` :
+  ![Tests unitaires composants M3.1](livrables/TP4-5-6/Capture_ecran/capture_tests_composants_m3.png)
+- Révocation depuis le composant `SharePanel` et rejet `403 Forbidden` dans l'onglet Network :
+  ![Révocation SharePanel et erreur 403](livrables/TP4-5-6/Capture_ecran/capture_revocation_403.png)
 
 ### 8. Ce que je sais expliquer sans l'agent
 - **Intérêt de `toObservable()` + `switchMap()` pour la barre de recherche :** `debounceTime(300)` évite d'envoyer une requête HTTP à chaque frappe clavier, et `switchMap()` annule automatiquement la requête HTTP précédente si l'utilisateur retape un caractère avant la réponse du serveur (évitant les conditions de course).
@@ -494,6 +496,42 @@ Finaliser les interfaces du périmètre social et personnel sans modifier `route
 ### 7. Preuve de fonctionnement
 - Exécution de la suite complète Vitest (8 fichiers / 18 tests réussis) et build Angular :
   ![Tests unitaires M3.2](livrables/TP4-5-6/Capture_ecran/capture_tests_composants_m3.2.png)
+- Interface des listes collaboratives (`ListsPage`) et persistance de l'ordre par glisser-déposer (`PUT /api/lists/:id/reorder`) :
+  ![Listes collaboratives et Drag & Drop](livrables/TP4-5-6/Capture_ecran/capture_lists_dragdrop.png)
 
 ### 8. Ce que je sais expliquer sans l'agent
 - **Fonctionnement de `moveItemInArray` + persistance serveur :** `moveItemInArray()` réorganise localement une copie du tableau des spots à partir de `event.previousIndex` et `event.currentIndex`, puis `ListService.reorderSpots()` envoie la liste ordonnée des identifiants (`spotIds`) via `PUT /api/lists/:id/reorder` pour garantir que l'ordre soit conservé pour tous les collaborateurs en base MongoDB.
+
+## Mission 4 — Tests de Révocation Bout-en-Bout, Audit `API_CONTRACT.md` & Rédaction de `REPORT.md`
+
+### 1. Objectif
+Clôturer le périmètre Personne B et les livrables du TP4 :
+1. Écrire les tests de révocation d'accès bout-en-bout côté frontend (`revocation-flow.spec.ts`) et d'intégration backend (`backend/test/social-acl.test.js`).
+2. Auditer la conformité complète de `API_CONTRACT.md` pour l'ensemble des routes sociales, ACL et listes collaboratives.
+3. Rédiger le rapport technique final `REPORT.md` à la racine du dépôt.
+
+### 2. Prompt principal
+> « Lis API_CONTRACT.md, backend/best-practices.md et frontend-starter/best-practices.md. Pour clôturer le périmètre Personne B (Mission 4) et les livrables du projet VibeSpot :
+> 1. Écris `revocation-flow.spec.ts` (partage privé, révocation `PATCH /api/spots/:id/share`, rejet `403 Forbidden`, suppression d'ami `DELETE /api/friends/:friendId`) et `backend/test/social-acl.test.js` (`node:test` + `assert`).
+> 2. Vérifie et complète `API_CONTRACT.md`.
+> 3. Rédige le rapport technique final `REPORT.md` à la racine du dépôt. »
+
+### 3. Vérifications réalisées
+- Exécution de la suite complète Vitest (`npm test -- --watch=false`) : **16 fichiers de tests validés (76/76 tests au vert)**.
+- Exécution du test d'intégration backend (`node --test backend/test/social-acl.test.js`) : **2/2 tests passés** (vérification du statut `403 Forbidden` et de la purge en cascade `revokedSpotsCount`).
+- Validation manuelle dans le navigateur avec DevTools Network (`DELETE /api/friends/:friendId` -> `200 OK` et mise à jour immédiate de l'interface).
+
+### 4. Fichiers créés / mis à jour
+- `frontend-starter/src/app/shared/services/revocation-flow.spec.ts`
+- `backend/test/social-acl.test.js`
+- `API_CONTRACT.md`
+- `REPORT.md`
+- `RAPPORT_IA_MODELE.md`
+
+### 5. Preuve de fonctionnement
+- Requête `DELETE /api/friends/:id` (`200 OK`) et actualisation immédiate du compteur d'amis dans l'interface :
+  ![Suppression d'ami et mise à jour Signals](livrables/TP4-5-6/Capture_ecran/capture_delete_friend_cascade.png)
+
+
+### 6. Ce que je sais expliquer sans l'agent
+- **Complémentarité entre tests unitaires frontend (`HttpTestingController`) et tests d'intégration backend (`node:test`) :** Les tests Angular vérifient que l'interface et les services émettent les bonnes requêtes HTTP et réagissent proprement aux codes `403` ou `200` via les Signals, tandis que les tests Express vérifient que le serveur applique réellement les règles ACL (`buildSpotAccessFilter`, purge en cascade sur `User`, `Spot` et `CustomList`) même si un client contourne l'interface.
